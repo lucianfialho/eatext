@@ -38,6 +38,7 @@ const state = {
   lastBiteTime: 0,     // performance.now() of last char-consume event
   graphemes: [],       // [{char, width, index}] for active line — grapheme-aware
   cumWidths: [0],      // [0, w0, w0+w1, ...] cumulative pixel widths, O(1) lookup
+  finale: null,        // null | {phase, born, ghostX, chomped, deathT}
 };
 
 // ============================================================
@@ -344,26 +345,74 @@ function rebuildGraphemes() {
   for (const g of state.graphemes) state.cumWidths.push(state.cumWidths.at(-1) + g.width);
 }
 
-// Draw Chomp facing RIGHT — mouth opens toward the text.
-// cx/cy = center, r = radius, mouthOpen = 0..1, bob = pre-computed vertical offset
-function drawChomp(cx, cy, r, mouthOpen, bob) {
+// Scared ghost (blue) — appears at end of text for Pac-Man to eat.
+function drawGhost(x, y, r, alpha) {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const gr = r * 0.88;
+  const gh = r * 1.5;
+
+  ctx.fillStyle = '#2222cc';
+  ctx.beginPath();
+  ctx.arc(x, y, gr, Math.PI, 0, false);
+  ctx.lineTo(x + gr, y + gh * 0.55);
+  const bumpW = (gr * 2) / 3;
+  for (let i = 0; i < 3; i++) {
+    const bx = x + gr - i * bumpW;
+    ctx.quadraticCurveTo(bx - bumpW * 0.5, y + gh * 0.92, bx - bumpW, y + gh * 0.55);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // White eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.ellipse(x - gr * 0.3, y - gr * 0.08, gr * 0.22, gr * 0.26, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + gr * 0.3, y - gr * 0.08, gr * 0.22, gr * 0.26, 0, 0, Math.PI * 2); ctx.fill();
+  // Pupils (scared — looking left toward Pac-Man)
+  ctx.fillStyle = '#6699ff';
+  ctx.beginPath(); ctx.arc(x - gr * 0.35, y - gr * 0.06, gr * 0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + gr * 0.24, y - gr * 0.06, gr * 0.12, 0, Math.PI * 2); ctx.fill();
+  // Scared wavy mouth
+  ctx.strokeStyle = '#6699ff'; ctx.lineWidth = gr * 0.1; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  const my = y + gr * 0.38, mw = gr * 0.6;
+  ctx.moveTo(x - mw / 2, my);
+  ctx.lineTo(x - mw / 4, my - gr * 0.1);
+  ctx.lineTo(x,          my + gr * 0.04);
+  ctx.lineTo(x + mw / 4, my - gr * 0.1);
+  ctx.lineTo(x + mw / 2, my);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Draw Chomp facing RIGHT.
+// deathT: 0 = normal, 1 = fully dead (mouth opens wide → rotates → shrinks).
+function drawChomp(cx, cy, r, mouthOpen, bob, deathT = 0) {
   const t     = Date.now() / 1000;
-  const angle = mouthOpen * 0.36 * Math.PI; // max ~65°
 
-  // Squish/stretch: body deforms on each chomp
-  const sX = 1 - mouthOpen * 0.09;  // squeeze width when mouth open
-  const sY = 1 + mouthOpen * 0.09;  // stretch height when mouth open
+  // Death overrides
+  const openT   = deathT > 0 ? Math.min(1, deathT * 2) : 0;
+  const shrinkT = deathT > 0 ? Math.max(0, (deathT - 0.3) / 0.7) : 0;
+  const angle   = deathT > 0 ? openT * Math.PI * 0.98 : mouthOpen * 0.36 * Math.PI;
+  const sX      = deathT > 0 ? Math.max(0.01, 1 - shrinkT) : 1 - mouthOpen * 0.09;
+  const sY      = deathT > 0 ? Math.max(0.01, 1 - shrinkT) : 1 + mouthOpen * 0.09;
+  const rot     = openT * Math.PI * 0.8;
+  const alpha   = deathT > 0 ? Math.max(0, 1 - shrinkT * 1.4) : 1;
 
-  // Blink: eye closes briefly every ~3.5 s
-  const blinkCycle  = t % 3.5;
-  const blinkPhase  = blinkCycle > 3.35 ? (blinkCycle - 3.35) / 0.15 : 0; // 0..1
-  const blinkAmount = blinkPhase > 0 ? Math.sin(blinkPhase * Math.PI) : 0;  // 0..1
+  // Blink (disabled during death)
+  const blinkCycle  = deathT > 0 ? 0 : t % 3.5;
+  const blinkPhase  = blinkCycle > 3.35 ? (blinkCycle - 3.35) / 0.15 : 0;
+  const blinkAmount = blinkPhase > 0 ? Math.sin(blinkPhase * Math.PI) : 0;
 
   ctx.save();
+  ctx.globalAlpha = alpha;
   ctx.translate(cx, cy + bob);
+  if (rot > 0) ctx.rotate(rot);
   ctx.scale(sX, sY);
 
-  // Body — yellow circle with bite taken out
+  // Body
   ctx.fillStyle = '#f5c518';
   ctx.beginPath();
   ctx.moveTo(0, 0);
@@ -371,37 +420,29 @@ function drawChomp(cx, cy, r, mouthOpen, bob) {
   ctx.closePath();
   ctx.fill();
 
-  // Teeth on the jaw edges
-  if (mouthOpen > 0.1) {
+  // Teeth (skip during death)
+  if (deathT === 0 && mouthOpen > 0.1) {
     ctx.fillStyle = '#fff';
-    const tw = r * 0.18;
-    const th = r * 0.2 * mouthOpen;
-    const tx = r * 0.35;
+    const tw = r * 0.18; const th = r * 0.2 * mouthOpen; const tx = r * 0.35;
     const uy = -Math.sin(angle) * r * 0.82;
     ctx.fillRect(tx - tw / 2, uy - th, tw, th);
-    const ly = Math.sin(angle) * r * 0.82;
-    ctx.fillRect(tx - tw / 2, ly, tw, th);
+    ctx.fillRect(tx - tw / 2, Math.sin(angle) * r * 0.82, tw, th);
   }
 
-  // Eye (with blink)
-  const eyeX = r * 0.1;
-  const eyeY = -r * 0.48;
-  const eyeR = r * 0.14;
-
-  ctx.save();
-  ctx.translate(eyeX, eyeY);
-  ctx.scale(1, Math.max(0.05, 1 - blinkAmount * 0.95)); // squish vertically on blink
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath();
-  ctx.arc(0, 0, eyeR, 0, Math.PI * 2);
-  ctx.fill();
-  if (blinkAmount < 0.4) {
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.beginPath();
-    ctx.arc(eyeR * 0.38, -eyeR * 0.42, eyeR * 0.4, 0, Math.PI * 2);
-    ctx.fill();
+  // Eye
+  if (deathT < 0.65) {
+    const eyeX = r * 0.1; const eyeY = -r * 0.48; const eyeR = r * 0.14;
+    ctx.save();
+    ctx.translate(eyeX, eyeY);
+    ctx.scale(1, Math.max(0.05, 1 - blinkAmount * 0.95));
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(0, 0, eyeR, 0, Math.PI * 2); ctx.fill();
+    if (blinkAmount < 0.4) {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath(); ctx.arc(eyeR * 0.38, -eyeR * 0.42, eyeR * 0.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
   }
-  ctx.restore();
 
   ctx.restore();
 }
@@ -685,8 +726,17 @@ function renderFrame() {
 
   if (state.settings.mirror) ctx.restore();
 
+  // ── Finale ghost (drawn before Pac-Man so he's on top) ───────
+  if (state.finale && !state.finale.chomped) {
+    const ghostAlpha = state.finale.phase === 'eat'
+      ? Math.max(0, 1 - (performance.now() - state.finale.born) / 250)
+      : 1;
+    drawGhost(state.finale.ghostX, activeY, chompR, ghostAlpha);
+  }
+
   // ── Pac-Man — stationary, mouth facing right ─────────────────
-  drawChomp(pacCX, activeY, chompR, mouthOpen, bob);
+  const deathT = (state.finale?.phase === 'death') ? state.finale.deathT : 0;
+  drawChomp(pacCX, activeY, chompR, mouthOpen, bob, deathT);
 
   // ── Crunch particles ─────────────────────────────────────────
   const now = performance.now();
@@ -793,8 +843,66 @@ function scrollLoop() {
   if (state.lineIndex < state.lines.length) {
     state.animFrameId = requestAnimationFrame(scrollLoop);
   } else {
-    state.running = false;
+    startFinale();
   }
+}
+
+// ============================================================
+// Finale — ghost slides in, gets eaten, Pac-Man dies
+// ============================================================
+
+function startFinale() {
+  cancelAnimationFrame(state.animFrameId);
+  state.running = false;
+  state.finale  = {
+    phase:   'ghost-in',
+    born:    performance.now(),
+    ghostX:  window.innerWidth + 80,
+    chomped: false,
+    deathT:  0,
+  };
+  finaleLoop();
+}
+
+function finaleLoop() {
+  const f = state.finale;
+  if (!f) return;
+
+  const now = performance.now();
+  const g   = chompGeometry();
+  const ghostTargetX = g.mouthX + g.r * 0.8; // right at the mouth lip
+
+  if (f.phase === 'ghost-in') {
+    const GHOST_IN_MS = 1500;
+    const t    = Math.min(1, (now - f.born) / GHOST_IN_MS);
+    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+    f.ghostX   = window.innerWidth + 80 + (ghostTargetX - (window.innerWidth + 80)) * ease;
+
+    if (t >= 1) {
+      f.phase = 'eat';
+      f.born  = now;
+      state.lastBiteTime = now;
+      spawnExplosion(g.mouthX, g.activeY, g.lh);
+      spawnCrunch(g.mouthX, g.activeY, g.lh * 0.6);
+    }
+  } else if (f.phase === 'eat') {
+    if (now - f.born >= 500) {
+      f.phase   = 'death';
+      f.born    = now;
+      f.chomped = true;
+      spawnCrunch(g.mouthX, g.activeY, g.lh * 0.5);
+    }
+  } else if (f.phase === 'death') {
+    f.deathT = Math.min(1, (now - f.born) / 1200);
+    if (f.deathT >= 1) {
+      state.finale = null;
+      renderFrame();
+      return;
+    }
+  }
+
+  renderFrame();
+  state.animFrameId = requestAnimationFrame(finaleLoop);
 }
 
 function togglePause() {
