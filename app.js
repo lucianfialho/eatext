@@ -13,7 +13,7 @@ const DEBOUNCE_SAVE_MS     = 500;
 const BITE_DURATION_MS     = 280; // one open→close cycle, independent of reading speed
 
 const DEFAULT_SETTINGS = {
-  speed: 4,
+  speed: 3,
   fontSize: 48,
   theme: 'auto',
   scrollEffect: 'linear',
@@ -571,9 +571,10 @@ function drawWindLines(cx, cy, r, speed) {
   ctx.restore();
 }
 
-// WPM = chars/sec ÷ avg chars per word (5) × 60
+// WPM range: 150 (speed 1, slow reader) → 600 (speed 10, speed reader)
+// Average adult reader ~200-250 WPM → default speed 3 = 250 WPM
 function calcWPM(speed) {
-  return Math.round((1.8 + speed * 1.25) / 5 * 60);
+  return Math.round(150 + (speed - 1) / 9 * 450);
 }
 
 // Update the HTML HUD pill — only when values actually change.
@@ -757,7 +758,8 @@ function scrollLoop() {
 
   // Characters per second: comfortable reading pace at speed 4 (~75 WPM)
   // speed 1 = ~30 WPM, speed 10 = ~160 WPM
-  const charsPerSec   = 1.8 + state.settings.speed * 1.25;
+  const wpm           = 150 + (state.settings.speed - 1) / 9 * 450;
+  const charsPerSec   = wpm * 5 / 60; // 5 avg chars per word
   const charsPerFrame = charsPerSec / 60;
 
   const prevFloor = Math.floor(state.charProgress);
