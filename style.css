@@ -25,6 +25,14 @@
   /* Transitions */
   --t-fast: 150ms ease;
   --t-normal: 220ms ease;
+
+  /* Arcade theme */
+  --arcade-yellow:  #ffff00;
+  --arcade-cyan:    #00ffff;
+  --arcade-magenta: #ff00ff;
+  --arcade-purple:  #8800ff;
+  --arcade-bg:      #05010d;
+  --arcade-font:    'Press Start 2P', 'Courier New', monospace;
 }
 
 [data-theme="light"] {
@@ -355,7 +363,39 @@ button {
 
 /* --- Teleprompter screen ----------------------------------- */
 #screen-prompter {
-  background: var(--canvas-bg);
+  background: var(--arcade-bg);
+  border: 3px solid var(--arcade-purple);
+  box-shadow:
+    0 0 0 1px var(--arcade-purple),
+    0 0 30px rgba(136, 0, 255, 0.35),
+    0 0 80px rgba(136, 0, 255, 0.12),
+    inset 0 0 40px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  position: relative;
+}
+
+#screen-prompter::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.22) 2px,
+    rgba(0, 0, 0, 0.22) 4px
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+#screen-prompter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(80, 0, 120, 0.10) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 3;
 }
 
 #camera-feed {
@@ -535,7 +575,8 @@ button {
   top: 0;
   left: 0;
   height: 3px;
-  background: var(--accent);
+  background: var(--arcade-yellow);
+  box-shadow: 0 0 8px var(--arcade-yellow), 0 0 20px var(--arcade-yellow);
   width: 0%;
   z-index: 10;
   transition: width 100ms linear;
