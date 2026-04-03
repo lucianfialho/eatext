@@ -324,7 +324,7 @@ button {
   overflow: hidden;
   position: relative;
   background: var(--canvas-bg);
-  padding-top: 12px;
+  padding-top: 24px;
 }
 
 #screen-prompter::before {
