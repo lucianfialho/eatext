@@ -639,6 +639,22 @@ function renderFrame() {
   ctx.fillText(upcomingText, upcomingX, activeY + bob);
   ctx.restore();
 
+  // ── Focus gradient: text near mouth = clear, far right = faded ──────
+  // Mimics WPM e-reader focus — eye pulled to the eating point, not ahead.
+  {
+    const c   = renderCache.canvasBg;
+    const br  = c.length === 7 ? parseInt(c.slice(1, 3), 16) : 10;
+    const bg_ = c.length === 7 ? parseInt(c.slice(3, 5), 16) : 10;
+    const bb  = c.length === 7 ? parseInt(c.slice(5, 7), 16) : 10;
+    const fog = ctx.createLinearGradient(mouthX, 0, w, 0);
+    fog.addColorStop(0,    `rgba(${br},${bg_},${bb},0)`);     // mouth: fully clear
+    fog.addColorStop(0.12, `rgba(${br},${bg_},${bb},0.18)`);  // just ahead: slight haze
+    fog.addColorStop(0.4,  `rgba(${br},${bg_},${bb},0.60)`);  // mid: reading horizon
+    fog.addColorStop(1,    `rgba(${br},${bg_},${bb},0.88)`);  // far: near-hidden
+    ctx.fillStyle = fog;
+    ctx.fillRect(mouthX, 0, w - mouthX, h);
+  }
+
   // ── Current grapheme: shrinks + fades + turns yellow as it's eaten ──
   if (currentChar) {
     const eatT  = charSubPhase;                          // 0=entering mouth, 1=swallowed
