@@ -1,4 +1,4 @@
-// Cue — Teleprompter PWA
+// EatText — Teleprompter PWA
 // app.js — main entry point
 
 // No external dependencies — word-wrap is implemented inline below.
@@ -7,8 +7,8 @@
 // Constants
 // ============================================================
 
-const STORAGE_KEY_SCRIPT   = 'cue_script';
-const STORAGE_KEY_SETTINGS = 'cue_settings';
+const STORAGE_KEY_SCRIPT   = 'eattext_script';
+const STORAGE_KEY_SETTINGS = 'eattext_settings';
 const DEBOUNCE_SAVE_MS     = 500;
 
 const DEFAULT_SETTINGS = {
@@ -92,7 +92,7 @@ O texto rola automaticamente. Você controla a velocidade com um toque na tela. 
 
 Tem modo espelho para quem usa teleprompter físico na frente da câmera. Tem modo fisheye, que destaca a linha que você está lendo agora. Funciona offline. Funciona em qualquer celular.
 
-Cue. O teleprompter que some quando você não precisa dele.`;
+EatText. O teleprompter que come seu roteiro linha por linha.`;
 
 function loadScript() {
   state.script = localStorage.getItem(STORAGE_KEY_SCRIPT) ?? EXAMPLE_SCRIPT;
@@ -328,6 +328,45 @@ function prepareCanvas() {
   state.totalHeight = state.lines.length * lh;
 }
 
+// Draw the Chomp character — a round face with animated chomping jaw.
+// cx/cy = center, r = radius, mouthOpen = 0 (closed) to 1 (fully open).
+function drawChomp(cx, cy, r, mouthOpen, isDark) {
+  const angle = mouthOpen * 0.38 * Math.PI; // max ~68° opening
+
+  // Body
+  ctx.save();
+  ctx.fillStyle = isDark ? '#f5c518' : '#e6b800';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, angle, Math.PI * 2 - angle);
+  ctx.lineTo(cx, cy);
+  ctx.closePath();
+  ctx.fill();
+
+  // Upper teeth (2 small rectangles)
+  if (mouthOpen > 0.15) {
+    ctx.fillStyle = '#fff';
+    const toothW = r * 0.22;
+    const toothH = r * 0.18 * mouthOpen;
+    const teethY = cy - r * 0.04;
+    ctx.fillRect(cx - toothW - 1, teethY - toothH, toothW, toothH);
+    ctx.fillRect(cx + 1, teethY - toothH, toothW, toothH);
+  }
+
+  // Eye
+  ctx.fillStyle = isDark ? '#1a1a1a' : '#222';
+  ctx.beginPath();
+  ctx.arc(cx + r * 0.15, cy - r * 0.45, r * 0.13, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye shine
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(cx + r * 0.19, cy - r * 0.5, r * 0.05, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 function renderFrame() {
   const w   = window.innerWidth;
   const h   = window.innerHeight;
@@ -395,6 +434,26 @@ function renderFrame() {
   });
 
   if (state.settings.mirror) ctx.restore();
+
+  // Chomp character — sits at the reading line (25% from top)
+  const readingY = h * 0.25 + lh / 2;
+  const chompR   = Math.round(lh * 0.42);
+  const chompX   = Math.round(padding * 0.42);
+  const isDark   = (state.settings.theme === 'light') ? false
+    : (state.settings.theme === 'dark') ? true
+    : !window.matchMedia('(prefers-color-scheme: light)').matches;
+
+  let mouthOpen;
+  if (!state.running) {
+    // Paused: mouth half-open, waiting
+    mouthOpen = 0.5;
+  } else {
+    // Chomping: oscillate at ~3Hz tied to real time so it feels alive
+    const t = Date.now() / 1000;
+    mouthOpen = (Math.sin(t * Math.PI * 6) + 1) / 2;
+  }
+
+  drawChomp(chompX, readingY, chompR, mouthOpen, isDark);
 
   // Progress bar update
   if (state.settings.progress && state.totalHeight > 0) {

@@ -1,17 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
   <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
-  <!-- Letter C stylized as a teleprompter cue mark -->
-  <text
-    x="256"
-    y="340"
-    font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    font-size="280"
-    font-weight="700"
-    text-anchor="middle"
-    fill="#ffffff"
-    letter-spacing="-8"
-  >C</text>
-  <!-- Horizontal lines suggesting text lines -->
-  <rect x="168" y="380" width="176" height="12" rx="6" fill="rgba(255,255,255,0.3)"/>
-  <rect x="196" y="402" width="120" height="10" rx="5" fill="rgba(255,255,255,0.2)"/>
+
+  <!-- Body (Pac-Man style, mouth open ~45deg) -->
+  <path d="M256 100
+    A156 156 0 1 1 366 311
+    L256 256 Z"
+    fill="#f5c518"/>
+
+  <!-- Upper teeth -->
+  <rect x="246" y="190" width="32" height="22" rx="4" fill="#fff"/>
+  <rect x="288" y="190" width="32" height="22" rx="4" fill="#fff"/>
+
+  <!-- Eye -->
+  <circle cx="292" cy="148" r="20" fill="#1a1a1a"/>
+  <circle cx="299" cy="141" r="7" fill="rgba(255,255,255,0.75)"/>
+
+  <!-- Text lines being eaten (coming from right side of mouth) -->
+  <rect x="310" y="242" width="130" height="12" rx="6" fill="rgba(255,255,255,0.5)"/>
+  <rect x="310" y="266" width="100" height="12" rx="6" fill="rgba(255,255,255,0.35)"/>
+  <rect x="310" y="290" width="115" height="12" rx="6" fill="rgba(255,255,255,0.2)"/>
 </svg>
