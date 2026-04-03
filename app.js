@@ -1,7 +1,7 @@
 // Cue — Teleprompter PWA
 // app.js — main entry point
 
-import { prepare, layoutWithLines } from 'https://esm.sh/@chenglou/pretext@0.0.4';
+// No external dependencies — word-wrap is implemented inline below.
 
 // ============================================================
 // Constants
@@ -32,7 +32,6 @@ const state = {
   scrollY: 0,
   totalHeight: 0,
   animFrameId: null,
-  prepared: null,
   lines: [],
 };
 
@@ -178,7 +177,7 @@ function bindSettingsEvents() {
     ui.fontSizeValue.textContent = state.settings.fontSize + 'px';
     saveSettings();
     // Re-prepare text if canvas is active (live update)
-    if (state.prepared) prepareCanvas();
+    if (state.lines.length) prepareCanvas();
   });
 
   document.querySelectorAll('[data-theme]').forEach((btn) => {
@@ -201,7 +200,7 @@ function bindSettingsEvents() {
     state.settings.mirror = !state.settings.mirror;
     saveSettings();
     syncSettingsUI();
-    if (state.prepared) renderFrame();
+    if (state.lines.length) renderFrame();
   });
 
   ui.toggleProgress.addEventListener('click', () => {
@@ -295,17 +294,38 @@ function resizeCanvas() {
   ctx.scale(dpr, dpr);
 }
 
+// Word-wrap text into lines that fit maxWidth using canvas measureText.
+// Handles explicit newlines in the source text.
+function buildLines(text, font, maxWidth) {
+  ctx.font = font;
+  const result = [];
+  for (const para of text.split('\n')) {
+    if (!para.trim()) { result.push(''); continue; }
+    const words = para.split(/\s+/).filter(Boolean);
+    let current = '';
+    for (const word of words) {
+      const candidate = current ? current + ' ' + word : word;
+      if (current && ctx.measureText(candidate).width > maxWidth) {
+        result.push(current);
+        current = word;
+      } else {
+        current = candidate;
+      }
+    }
+    if (current) result.push(current);
+  }
+  return result;
+}
+
 function prepareCanvas() {
   if (!state.script.trim()) return;
-  const font = getFont();
-  const lh   = getLineHeight();
-  const padding = Math.round(window.innerWidth * 0.08); // 8% horizontal padding
+  const font    = getFont();
+  const lh      = getLineHeight();
+  const padding = Math.round(window.innerWidth * 0.08);
   const maxWidth = window.innerWidth - padding * 2;
 
-  state.prepared = prepare(state.script, font);
-  const result = layoutWithLines(state.prepared, maxWidth, lh);
-  state.totalHeight = result.height;
-  state.lines = result.lines; // each line has .text, .width, .start, .end
+  state.lines = buildLines(state.script, font, maxWidth);
+  state.totalHeight = state.lines.length * lh;
 }
 
 function renderFrame() {
@@ -325,7 +345,7 @@ function renderFrame() {
   ctx.fillStyle = canvasBg;
   ctx.fillRect(0, 0, w, h);
 
-  if (!state.prepared || !state.lines.length) return;
+  if (!state.lines.length) return;
 
   // Mirror transform
   if (state.settings.mirror) {
@@ -369,7 +389,7 @@ function renderFrame() {
     ctx.font      = font;
     ctx.fillStyle = canvasText;
     ctx.textBaseline = 'top';
-    ctx.fillText(line.text ?? '', x, lineY);
+    ctx.fillText(line, x, lineY);
 
     ctx.restore();
   });
