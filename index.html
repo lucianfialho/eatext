@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="description" content="Teleprompter mobile. Cole seu roteiro e comece a ler.">
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cue">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+  <title>Cue</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- Screen: Input -->
+  <div id="screen-input" class="screen active">
+    <header class="input-header">
+      <h1 class="app-title">Cue</h1>
+      <div class="header-actions">
+        <button id="btn-settings" class="icon-btn" aria-label="Configurações">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+        <button id="btn-clear" class="icon-btn" aria-label="Limpar roteiro">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="textarea-wrap">
+      <textarea
+        id="script-input"
+        class="script-textarea"
+        placeholder="Cole ou digite seu roteiro aqui..."
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-label="Roteiro"
+      ></textarea>
+    </div>
+
+    <footer class="input-footer">
+      <button id="btn-start" class="btn-primary" aria-label="Iniciar teleprompter">
+        Iniciar
+      </button>
+    </footer>
+  </div>
+
+  <!-- Screen: Settings -->
+  <div id="screen-settings" class="screen" aria-modal="true" role="dialog" aria-labelledby="settings-title">
+    <header class="settings-header">
+      <button id="btn-settings-close" class="icon-btn" aria-label="Fechar configurações">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <h2 id="settings-title" class="settings-title">Configurações</h2>
+    </header>
+
+    <div class="settings-body">
+
+      <div class="setting-group">
+        <label for="slider-speed" class="setting-label">
+          Velocidade
+          <span id="speed-value" class="setting-value">4</span>
+        </label>
+        <input type="range" id="slider-speed" class="slider" min="1" max="10" value="4" step="1" aria-label="Velocidade de scroll">
+      </div>
+
+      <div class="setting-group">
+        <label for="slider-font-size" class="setting-label">
+          Tamanho da fonte
+          <span id="font-size-value" class="setting-value">48px</span>
+        </label>
+        <input type="range" id="slider-font-size" class="slider" min="24" max="96" value="48" step="2" aria-label="Tamanho da fonte">
+      </div>
+
+      <div class="setting-group">
+        <span class="setting-label">Tema</span>
+        <div class="toggle-group" role="group" aria-label="Tema">
+          <button class="toggle-btn active" data-theme="dark" aria-pressed="false">Escuro</button>
+          <button class="toggle-btn" data-theme="light" aria-pressed="false">Claro</button>
+          <button class="toggle-btn" data-theme="auto" aria-pressed="true">Auto</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <span class="setting-label">Efeito de scroll</span>
+        <div class="toggle-group" role="group" aria-label="Efeito de scroll">
+          <button class="toggle-btn active" data-scroll-effect="linear" aria-pressed="true">Linear</button>
+          <button class="toggle-btn" data-scroll-effect="fisheye" aria-pressed="false">Fisheye</button>
+        </div>
+      </div>
+
+      <div class="setting-group row">
+        <label class="setting-label" for="toggle-mirror">Modo espelho</label>
+        <button id="toggle-mirror" class="switch" role="switch" aria-checked="false" aria-label="Modo espelho">
+          <span class="switch-thumb"></span>
+        </button>
+      </div>
+
+      <div class="setting-group row">
+        <label class="setting-label" for="toggle-progress">Indicador de progresso</label>
+        <button id="toggle-progress" class="switch" role="switch" aria-checked="false" aria-label="Indicador de progresso">
+          <span class="switch-thumb"></span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Screen: Teleprompter -->
+  <div id="screen-prompter" class="screen">
+    <canvas id="prompter-canvas" aria-label="Teleprompter" role="img"></canvas>
+    <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
+    <button id="btn-exit" class="exit-btn" aria-label="Sair do teleprompter">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
