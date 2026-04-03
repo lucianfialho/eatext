@@ -129,6 +129,19 @@
   <div id="screen-prompter" class="screen">
     <canvas id="prompter-canvas" aria-label="Teleprompter" role="img"></canvas>
     <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
+
+    <!-- Read Over overlay -->
+    <div id="read-over" class="read-over" hidden>
+      <div class="read-over-card">
+        <p class="read-over-label">read over</p>
+        <p id="read-over-count" class="read-over-count">1 / 1</p>
+        <div class="read-over-actions">
+          <button id="btn-next-article" class="read-over-btn ro-next">Next →</button>
+          <button id="btn-game-over"    class="read-over-btn ro-exit">Game Over</button>
+        </div>
+      </div>
+    </div>
+
     <div id="prompter-hud" class="prompter-hud" aria-hidden="true">
 
       <!-- WPM + speed bar -->

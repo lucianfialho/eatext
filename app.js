@@ -72,6 +72,10 @@ const ui = {
   fontSizeValue:   $('font-size-value'),
   toggleMirror:    $('toggle-mirror'),
   toggleProgress:  $('toggle-progress'),
+  readOver:        $('read-over'),
+  readOverCount:   $('read-over-count'),
+  btnNextArticle:  $('btn-next-article'),
+  btnGameOver:     $('btn-game-over'),
 };
 
 // ============================================================
@@ -766,7 +770,8 @@ function renderFrame() {
   }
 
   // ── Pac-Man — stationary, mouth facing right ─────────────────
-  drawChomp(pacCX, activeY, chompR, mouthOpen, bob);
+  const deathT = state.finale?.phase === 'death' ? state.finale.deathT : 0;
+  drawChomp(pacCX, activeY, chompR, mouthOpen, bob, deathT);
 
   // ── Crunch particles ─────────────────────────────────────────
   const now = performance.now();
@@ -878,8 +883,7 @@ function scrollLoop() {
 }
 
 // ============================================================
-// Finale — ghost slides in, gets eaten, next article starts
-// Infinite loop: article N → ghost chomp → article N+1 → …
+// Finale — ghost in → Pac-Man eats it → Pac-Man dies → Read Over
 // ============================================================
 
 function startFinale() {
@@ -890,6 +894,7 @@ function startFinale() {
     born:    performance.now(),
     ghostX:  window.innerWidth + 80,
     chomped: false,
+    deathT:  0,
   };
   finaleLoop();
 }
@@ -900,51 +905,70 @@ function finaleLoop() {
 
   const now = performance.now();
   const g   = chompGeometry();
-  // Ghost walks right up to Pac-Man's mouth
   const ghostTargetX = g.mouthX + g.r * 0.8;
 
   if (f.phase === 'ghost-in') {
-    // Slow, dramatic walk-in — speed 1 equivalent, 2s total
-    const GHOST_IN_MS = 2000;
-    const t    = Math.min(1, (now - f.born) / GHOST_IN_MS);
+    // Slow dramatic walk-in: 2s, cubic ease-in-out
+    const t    = Math.min(1, (now - f.born) / 2000);
     const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
     f.ghostX   = window.innerWidth + 80 + (ghostTargetX - (window.innerWidth + 80)) * ease;
-    // Slow anticipatory jaw cycle — one chomp every ~700ms (speed-1 feel)
+    // Slow anticipatory jaw chomps (~speed 1)
     if (!f.lastSlowBite || now - f.lastSlowBite > 700) {
       f.lastSlowBite = now;
       state.lastBiteTime = now;
     }
-
     if (t >= 1) {
       f.phase = 'eat';
       f.born  = now;
-      // Jaw snap + big burst
       state.lastBiteTime = now;
       spawnExplosion(g.mouthX, g.activeY, g.lh);
       spawnCrunch(g.mouthX, g.activeY, g.lh * 0.6);
     }
   } else if (f.phase === 'eat') {
-    // Hold chomp for 600ms, let particles settle
+    // Hold 600ms while particles fly
     if (now - f.born >= 600) {
+      f.phase   = 'death';
+      f.born    = now;
       f.chomped = true;
-      // Advance to next article (loop back to 0 when done)
-      state.articleIndex = (state.articleIndex + 1) % state.articles.length;
-      loadCurrentArticle();
-      // Reset prompter for new article
-      prepareCanvas();
-      state.lineIndex    = 0;
-      state.charProgress = 0;
-      state.particles    = [];
-      state.lastBiteTime = 0;
-      state.finale       = null;
-      state.running      = true;
-      scrollLoop();
+    }
+  } else if (f.phase === 'death') {
+    // Pac-Man death spin: 1.2s
+    f.deathT = Math.min(1, (now - f.born) / 1200);
+    if (f.deathT >= 1) {
+      state.finale = null;
+      renderFrame(); // one last frame fully dead
+      showReadOver();
       return;
     }
   }
 
   renderFrame();
   state.animFrameId = requestAnimationFrame(finaleLoop);
+}
+
+// ── Read Over screen ──────────────────────────────────────────
+
+function showReadOver() {
+  ui.readOverCount.textContent =
+    `${state.articleIndex + 1} / ${state.articles.length}`;
+  ui.readOver.hidden = false;
+}
+
+function hideReadOver() {
+  ui.readOver.hidden = true;
+}
+
+function bindReadOverEvents() {
+  ui.btnNextArticle.addEventListener('click', () => {
+    hideReadOver();
+    state.articleIndex = (state.articleIndex + 1) % state.articles.length;
+    loadCurrentArticle();
+    startPrompter();
+  });
+  ui.btnGameOver.addEventListener('click', () => {
+    hideReadOver();
+    exitPrompter();
+  });
 }
 
 // Draw a "loading" frame on the canvas — used while waiting for RSS fetch.
@@ -1076,6 +1100,7 @@ function startPrompter() {
   }
 
   showScreen('prompter');
+  hideReadOver();
   resizeCanvas();
   prepareCanvas();
   state.lineIndex    = 0;
@@ -1091,7 +1116,9 @@ function startPrompter() {
 
 function exitPrompter() {
   state.running = false;
+  state.finale  = null;
   cancelAnimationFrame(state.animFrameId);
+  hideReadOver();
   exitFullscreen().catch(() => {});
   showScreen('input');
 }
@@ -1136,6 +1163,7 @@ async function init() {
   updateRenderCache();
   syncSettingsUI();
   bindKeyboardEvents();
+  bindReadOverEvents();
 
   // Show canvas immediately so the user isn't staring at a black screen
   showScreen('prompter');
