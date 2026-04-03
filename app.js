@@ -80,8 +80,23 @@ function saveSettings() {
   localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
 }
 
+const EXAMPLE_SCRIPT =
+`Você já perdeu uma gravação porque estava olhando para o papel?
+
+Cue resolve isso.
+
+É um teleprompter que roda direto no seu celular. Sem instalar nada. Sem criar conta. Sem pagar nada.
+
+Cole seu roteiro, aperte Iniciar — e leia enquanto olha para a câmera.
+
+O texto rola automaticamente. Você controla a velocidade com um toque na tela. Se precisar pausar, é só tocar de novo.
+
+Tem modo espelho para quem usa teleprompter físico na frente da câmera. Tem modo fisheye, que destaca a linha que você está lendo agora. Funciona offline. Funciona em qualquer celular.
+
+Cue. O teleprompter que some quando você não precisa dele.`;
+
 function loadScript() {
-  state.script = localStorage.getItem(STORAGE_KEY_SCRIPT) || '';
+  state.script = localStorage.getItem(STORAGE_KEY_SCRIPT) ?? EXAMPLE_SCRIPT;
   ui.scriptInput.value = state.script;
 }
 
