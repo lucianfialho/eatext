@@ -127,14 +127,23 @@
 
   <!-- Screen: Teleprompter -->
   <div id="screen-prompter" class="screen">
+    <video id="camera-feed" autoplay playsinline muted aria-hidden="true"></video>
     <canvas id="prompter-canvas" aria-label="Teleprompter" role="img"></canvas>
     <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
-    <button id="btn-exit" class="exit-btn" aria-label="Sair do teleprompter">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <line x1="18" y1="6" x2="6" y2="18"/>
-        <line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-    </button>
+    <div class="prompter-controls">
+      <button id="btn-camera" class="icon-btn prompter-btn" aria-label="Ativar câmera" aria-pressed="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M23 7l-7 5 7 5V7z"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+      </button>
+      <button id="btn-exit" class="icon-btn prompter-btn" aria-label="Sair do teleprompter">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <script type="module" src="/app.js"></script>

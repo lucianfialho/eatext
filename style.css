@@ -358,6 +358,21 @@ button {
   background: var(--canvas-bg);
 }
 
+#camera-feed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  display: none;
+  transform: scaleX(-1); /* mirror front camera by default */
+}
+
+#camera-feed.active {
+  display: block;
+}
+
 #prompter-canvas {
   position: absolute;
   inset: 0;
@@ -365,40 +380,47 @@ button {
   height: 100%;
   display: block;
   touch-action: none;
+  z-index: 1;
 }
 
-.exit-btn {
+.prompter-controls {
   position: absolute;
   top: max(16px, env(safe-area-inset-top));
   right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.prompter-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: var(--touch-min);
   min-height: var(--touch-min);
   border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.4);
-  color: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 10;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   transition: color var(--t-fast), background var(--t-fast);
 }
 
-.exit-btn:hover,
-.exit-btn:focus-visible {
+.prompter-btn:hover,
+.prompter-btn:focus-visible {
   color: #fff;
   background: rgba(0, 0, 0, 0.7);
 }
 
-.exit-btn:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
+.prompter-btn[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
-[data-theme="light"] .exit-btn {
-  background: rgba(255, 255, 255, 0.7);
-  color: rgba(0, 0, 0, 0.6);
+.prompter-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 .progress-bar {

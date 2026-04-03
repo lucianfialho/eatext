@@ -33,6 +33,9 @@ const state = {
   totalHeight: 0,
   animFrameId: null,
   lines: [],
+  // Camera
+  cameraStream: null,
+  cameraActive: false,
 };
 
 // ============================================================
@@ -48,6 +51,8 @@ const screens = {
 };
 
 const ui = {
+  cameraFeed:      $('camera-feed'),
+  btnCamera:       $('btn-camera'),
   scriptInput:     $('script-input'),
   btnStart:        $('btn-start'),
   btnClear:        $('btn-clear'),
@@ -200,6 +205,8 @@ function bindSettingsEvents() {
     state.settings.mirror = !state.settings.mirror;
     saveSettings();
     syncSettingsUI();
+    // Front camera is already mirrored by CSS; flip back when mirror mode is on
+    ui.cameraFeed.style.transform = state.settings.mirror ? 'scaleX(1)' : 'scaleX(-1)';
     if (state.lines.length) renderFrame();
   });
 
@@ -233,6 +240,7 @@ function bindInputEvents() {
 
   ui.btnStart.addEventListener('click', startPrompter);
   ui.btnExit.addEventListener('click', exitPrompter);
+  ui.btnCamera.addEventListener('click', toggleCamera);
 }
 
 // ============================================================
@@ -378,10 +386,10 @@ function renderFrame() {
   const useFisheye  = isFisheye && !reducedMotion;
   const center = h / 2;
 
-  // Background
-  const canvasBg = getComputedStyle(document.documentElement)
-    .getPropertyValue('--canvas-bg').trim() || '#0a0a0a';
-  ctx.fillStyle = canvasBg;
+  // Background — solid when no camera, dark overlay when camera active
+  ctx.fillStyle = state.cameraActive ? 'rgba(0,0,0,0.62)' : (
+    getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim() || '#0a0a0a'
+  );
   ctx.fillRect(0, 0, w, h);
 
   if (!state.lines.length) return;
@@ -522,6 +530,45 @@ ui.canvas.addEventListener('touchmove', (e) => {
 }, { passive: true });
 
 // ============================================================
+// Camera
+// ============================================================
+
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) return;
+  try {
+    state.cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    ui.cameraFeed.srcObject = state.cameraStream;
+    ui.cameraFeed.classList.add('active');
+    state.cameraActive = true;
+    ui.btnCamera.setAttribute('aria-pressed', 'true');
+    ui.btnCamera.setAttribute('aria-label', 'Desativar câmera');
+  } catch (err) {
+    // Permission denied or no camera — fail silently
+    state.cameraActive = false;
+  }
+}
+
+function stopCamera() {
+  if (state.cameraStream) {
+    state.cameraStream.getTracks().forEach((t) => t.stop());
+    state.cameraStream = null;
+  }
+  ui.cameraFeed.srcObject = null;
+  ui.cameraFeed.classList.remove('active');
+  state.cameraActive = false;
+  ui.btnCamera.setAttribute('aria-pressed', 'false');
+  ui.btnCamera.setAttribute('aria-label', 'Ativar câmera');
+}
+
+function toggleCamera() {
+  if (state.cameraActive) stopCamera();
+  else startCamera();
+}
+
+// ============================================================
 // Fullscreen helpers
 // ============================================================
 
@@ -562,6 +609,7 @@ function startPrompter() {
 function exitPrompter() {
   state.running = false;
   cancelAnimationFrame(state.animFrameId);
+  stopCamera();
   exitFullscreen().catch(() => {});
   showScreen('input');
 }
