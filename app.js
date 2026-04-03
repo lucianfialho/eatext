@@ -80,6 +80,7 @@ const ui = {
   btnNextArticle:  $('btn-next-article'),
   btnGameOver:     $('btn-game-over'),
   sourceIcon:      $('arcade-source-icon'),
+  sourceBadge:     $('source-badge'),
 };
 
 // ============================================================
@@ -139,7 +140,8 @@ async function fetchFeed(url, source, descClean) {
     const rawDesc = item.querySelector('description')?.textContent?.trim() ?? '';
     const desc = descClean ? descClean(rawDesc) : '';
     const text = [title, desc].filter(Boolean).join('. ');
-    return { text, source };
+    const url  = item.querySelector('link')?.textContent?.trim() ?? '';
+    return { text, source, url };
   }).filter(a => a.text.length > 5);
 }
 
@@ -181,9 +183,16 @@ function loadCurrentArticle() {
       ui.sourceIcon.alt = article.source;
       ui.sourceIcon.hidden = false;
     }
+    if (ui.sourceBadge) {
+      const img = ui.sourceBadge.querySelector('img');
+      if (img) img.src = `https://www.google.com/s2/favicons?domain=${article.source}&sz=32`;
+      ui.sourceBadge.href = article.url || '#';
+      ui.sourceBadge.hidden = !article.url;
+    }
   } else {
     state.script = article ?? DEMO_SCRIPT;
     if (ui.sourceIcon) ui.sourceIcon.hidden = true;
+    if (ui.sourceBadge) ui.sourceBadge.hidden = true;
   }
 }
 

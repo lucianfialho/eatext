@@ -347,6 +347,52 @@ button {
   z-index: 1;
 }
 
+/* ── Source badge (favicon + open article link) ─────────────── */
+.source-badge {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  opacity: 0.35;
+  transition: opacity var(--t-fast);
+}
+
+.source-badge:hover,
+.source-badge:focus-visible {
+  opacity: 1;
+}
+
+.source-badge:focus-visible {
+  outline: 2px solid var(--arcade-cyan);
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+.source-badge[hidden] { display: none; }
+
+.source-badge-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--arcade-cyan);
+  box-shadow: 0 0 8px var(--arcade-cyan), 0 0 20px rgba(0,255,255,0.2);
+  background: var(--arcade-hud-bg);
+  object-fit: cover;
+}
+
+.source-badge-label {
+  font-size: 8px;
+  color: var(--arcade-cyan);
+  font-family: var(--arcade-font);
+  text-shadow: 0 0 6px var(--arcade-cyan);
+}
+
 /* ── Arcade Marquee ─────────────────────────────────────────── */
 .arcade-marquee {
   display: flex;
