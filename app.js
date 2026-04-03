@@ -208,18 +208,20 @@ function loadCurrentArticle() {
     state.script = article.text;
     if (ui.articleCard) {
       if (article.image) {
-        console.log('[CARD] showing image:', article.image);
         ui.articleCard.querySelector('img').src = article.image;
         ui.articleCard.href = article.url || '#';
         ui.articleCard.hidden = false;
       } else {
-        console.log('[CARD] no image for article:', article.text?.slice(0, 40));
         ui.articleCard.hidden = true;
       }
+      requestAnimationFrame(() => { resizeCanvas(); prepareCanvas(); });
     }
   } else {
     state.script = article ?? DEMO_SCRIPT;
-    if (ui.articleCard) ui.articleCard.hidden = true;
+    if (ui.articleCard) {
+      ui.articleCard.hidden = true;
+      requestAnimationFrame(() => { resizeCanvas(); prepareCanvas(); });
+    }
   }
 }
 
@@ -457,12 +459,11 @@ function getLineHeight() {
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const w = ui.canvas.offsetWidth;
+  const h = ui.canvas.offsetHeight;
+  if (!w || !h) return;
   ui.canvas.width  = w * dpr;
   ui.canvas.height = h * dpr;
-  ui.canvas.style.width  = w + 'px';
-  ui.canvas.style.height = h + 'px';
   ctx.scale(dpr, dpr);
 }
 
@@ -609,8 +610,8 @@ function drawChomp(cx, cy, r, mouthOpen, bob, deathT = 0) {
 
 // Shared geometry — horizontal mode: Pac-Man fixed on left, text scrolls into it.
 function chompGeometry() {
-  const w  = window.innerWidth;
-  const h  = window.innerHeight;
+  const w  = ui.canvas.offsetWidth  || window.innerWidth;
+  const h  = ui.canvas.offsetHeight || window.innerHeight;
   const lh = getLineHeight();
   const r  = Math.round(Math.min(lh * 0.82, 56));
   const padding = Math.round(w * 0.06);
@@ -1150,7 +1151,7 @@ function startFinale() {
   state.finale  = {
     phase:   'ghost-in',
     born:    performance.now(),
-    ghostX:  window.innerWidth + 80,
+    ghostX:  (ui.canvas.offsetWidth || window.innerWidth) + 80,
     chomped: false,
     deathT:  0,
   };
@@ -1169,7 +1170,8 @@ function finaleLoop() {
     // Slow dramatic walk-in: 2s, cubic ease-in-out
     const t    = Math.min(1, (now - f.born) / 2000);
     const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
-    f.ghostX   = window.innerWidth + 80 + (ghostTargetX - (window.innerWidth + 80)) * ease;
+    const cw = ui.canvas.offsetWidth || window.innerWidth;
+    f.ghostX   = cw + 80 + (ghostTargetX - (cw + 80)) * ease;
     // Slow anticipatory jaw chomps (~speed 1)
     if (!f.lastSlowBite || now - f.lastSlowBite > 700) {
       f.lastSlowBite = now;

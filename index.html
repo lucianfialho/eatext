@@ -127,14 +127,14 @@
       </div>
     </div>
 
-    <canvas id="prompter-canvas" aria-label="Leitor de artigos" role="img"></canvas>
-
-    <!-- Article image card -->
-    <a id="article-card" class="article-card" href="#" target="_blank" rel="noopener" hidden>
-      <img class="article-card-img" src="" alt="">
-      <span class="article-card-link">↗ ler artigo</span>
-    </a>
-
+    <!-- Reader body: image card + canvas stacked, flexbox -->
+    <div class="reader-body">
+      <a id="article-card" class="article-card" href="#" target="_blank" rel="noopener" hidden>
+        <img class="article-card-img" src="" alt="">
+        <span class="article-card-link">↗ ler artigo</span>
+      </a>
+      <canvas id="prompter-canvas" aria-label="Leitor de artigos" role="img"></canvas>
+    </div>
 
     <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
 
