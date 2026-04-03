@@ -96,16 +96,51 @@ function saveSettings() {
 
 const DEMO_SCRIPT = `TechCrunch feed unavailable. Pac-Man is hungry but offline. Check your connection and try again. Meanwhile, enjoy this placeholder text as Pac-Man eats every single character until help arrives. Waka waka waka.`;
 
-// Generic RSS fetch via allorigins CORS proxy.
+// CORS proxy strategies — tried in order until one succeeds.
+// Each returns the raw XML string or throws.
+const PROXY_STRATEGIES = [
+  async (url) => {
+    const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url),
+      { signal: AbortSignal.timeout(7000) });
+    if (!r.ok) throw new Error('allorigins ' + r.status);
+    const { contents } = await r.json();
+    if (!contents) throw new Error('allorigins empty');
+    return contents;
+  },
+  async (url) => {
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url),
+      { signal: AbortSignal.timeout(7000) });
+    if (!r.ok) throw new Error('corsproxy ' + r.status);
+    return r.text();
+  },
+  async (url) => {
+    const r = await fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+      { signal: AbortSignal.timeout(7000) });
+    if (!r.ok) throw new Error('codetabs ' + r.status);
+    return r.text();
+  },
+];
+
+async function fetchRaw(url) {
+  let lastErr;
+  for (const strategy of PROXY_STRATEGIES) {
+    try {
+      return await strategy(url);
+    } catch (e) {
+      lastErr = e;
+      console.warn('[EatText] proxy failed, trying next:', e.message);
+    }
+  }
+  throw lastErr;
+}
+
+// Generic RSS fetch with multi-proxy fallback.
 // `descClean`: optional fn(rawDesc) → clean string (pass null to skip description).
 async function fetchFeed(url, descClean) {
-  const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-  const res = await fetch(proxy, { signal: AbortSignal.timeout(9000) });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const { contents } = await res.json();
-  const doc = new DOMParser().parseFromString(contents, 'text/xml');
+  const xml = await fetchRaw(url);
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
   const items = [...doc.querySelectorAll('item')].slice(0, 30);
-  if (!items.length) throw new Error('No items');
+  if (!items.length) throw new Error('No items in ' + url);
   return items.map(item => {
     const title = item.querySelector('title')?.textContent?.trim() ?? '';
     const rawDesc = item.querySelector('description')?.textContent?.trim() ?? '';
