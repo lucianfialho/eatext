@@ -10,6 +10,7 @@
 const STORAGE_KEY_SCRIPT   = 'eattext_script';
 const STORAGE_KEY_SETTINGS = 'eattext_settings';
 const DEBOUNCE_SAVE_MS     = 500;
+const BITE_DURATION_MS     = 280; // one open→close cycle, independent of reading speed
 
 const DEFAULT_SETTINGS = {
   speed: 4,
@@ -34,6 +35,7 @@ const state = {
   animFrameId:  null,
   lines: [],           // [{text}]
   particles: [],       // crunch debris
+  lastBiteTime: 0,     // performance.now() of last char-consume event
 };
 
 // ============================================================
@@ -465,15 +467,18 @@ function renderFrame() {
   const g = chompGeometry();
   const { w, h, lh, r: chompR, padding, activeY, mouthX } = g;
 
-  // ── Char phase & "nhac nhac" jaw animation ────────────────────
-  const charPhase = state.charProgress % 1;
-  const bitePhase = Math.min(1, charPhase / 0.55);
+  // ── Jaw animation — time-based, fires only on char-consume events ──
+  // bitePhase: 0=closed, 0.5=fully open, 1=closed again (one cycle = BITE_DURATION_MS)
+  const biteAge   = performance.now() - state.lastBiteTime;
+  const bitePhase = Math.min(1, biteAge / BITE_DURATION_MS);
   const mouthOpen = state.running
     ? Math.pow(Math.sin(bitePhase * Math.PI), 1.6)
     : 0.45;
   const bob = (state.running && !renderCache.reducedMotion)
     ? Math.sin(bitePhase * Math.PI) * chompR * 0.11
     : 0;
+  // ── Text scroll position — still driven by charProgress (smooth) ──
+  const charSubPhase = state.charProgress % 1;
 
   // ── Background ───────────────────────────────────────────────
   ctx.fillStyle = '#0a0a0a';
@@ -496,8 +501,8 @@ function renderFrame() {
 
   // ── Pac-Man FIXED on left — text scrolls right→left into mouth ──
   // Text origin shifts left as chars are eaten, keeping the mouth at fixedMouthX
-  const pacCX       = padding + chompR;                               // fixed
-  const textOriginX = mouthX - eatenWidth - bitePhase * currentCharW; // scrolls left
+  const pacCX       = padding + chompR;                                 // fixed
+  const textOriginX = mouthX - eatenWidth - charSubPhase * currentCharW; // scrolls left
 
   // Show only uneaten portion (right of mouth)
   ctx.save();
@@ -555,8 +560,9 @@ function scrollLoop() {
   state.charProgress += charsPerFrame;
   const newFloor  = Math.floor(state.charProgress);
 
-  // Crunch at each word/punct boundary — always at fixed mouth position
+  // Trigger jaw bite + crunch particles on each char consumed
   if (newFloor > prevFloor) {
+    state.lastBiteTime = performance.now(); // fires the jaw animation
     const g = chompGeometry();
     for (let ci = prevFloor; ci < newFloor && ci < activeLine.text.length; ci++) {
       const ch = activeLine.text[ci];
@@ -700,6 +706,7 @@ function startPrompter() {
   state.lineIndex    = 0;
   state.charProgress = 0;
   state.particles    = [];
+  state.lastBiteTime = 0;
   state.running      = true;
   scrollLoop();
 
