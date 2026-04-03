@@ -129,6 +129,22 @@
   <div id="screen-prompter" class="screen">
     <canvas id="prompter-canvas" aria-label="Teleprompter" role="img"></canvas>
     <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
+    <div id="prompter-hud" class="prompter-hud" aria-hidden="true">
+      <div class="hud-item">
+        <span class="hud-label">vel</span>
+        <div class="hud-track">
+          <div id="hud-speed-fill" class="hud-fill"></div>
+        </div>
+        <span id="hud-speed-val" class="hud-val">4</span>
+      </div>
+      <div class="hud-sep"></div>
+      <span id="hud-font-val" class="hud-val">48px</span>
+      <div class="hud-sep"></div>
+      <div class="hud-hints">
+        <span>↕ speed</span>
+        <span>🤏 font</span>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/app.js"></script>
