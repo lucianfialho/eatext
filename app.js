@@ -96,33 +96,52 @@ function saveSettings() {
 
 const DEMO_SCRIPT = `TechCrunch feed unavailable. Pac-Man is hungry but offline. Check your connection and try again. Meanwhile, enjoy this placeholder text as Pac-Man eats every single character until help arrives. Waka waka waka.`;
 
-// Fetch and parse TechCrunch RSS via CORS proxy.
-// Returns array of article strings, or null on failure.
+// Generic RSS fetch via allorigins CORS proxy.
+// `descClean`: optional fn(rawDesc) → clean string (pass null to skip description).
+async function fetchFeed(url, descClean) {
+  const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+  const res = await fetch(proxy, { signal: AbortSignal.timeout(9000) });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const { contents } = await res.json();
+  const doc = new DOMParser().parseFromString(contents, 'text/xml');
+  const items = [...doc.querySelectorAll('item')].slice(0, 30);
+  if (!items.length) throw new Error('No items');
+  return items.map(item => {
+    const title = item.querySelector('title')?.textContent?.trim() ?? '';
+    const rawDesc = item.querySelector('description')?.textContent?.trim() ?? '';
+    const desc = descClean ? descClean(rawDesc) : '';
+    return [title, desc].filter(Boolean).join('. ');
+  }).filter(s => s.length > 5);
+}
+
+// Fetch TechCrunch + Hacker News in parallel, interleave results.
 async function fetchRSSArticles() {
-  try {
-    const FEED = 'https://techcrunch.com/feed/';
-    const proxy = 'https://api.allorigins.win/get?url=' + encodeURIComponent(FEED);
-    const res = await fetch(proxy, { signal: AbortSignal.timeout(9000) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const { contents } = await res.json();
-    const doc = new DOMParser().parseFromString(contents, 'text/xml');
-    const items = [...doc.querySelectorAll('item')].slice(0, 25);
-    if (!items.length) throw new Error('No items in feed');
-    return items.map(item => {
-      const title = item.querySelector('title')?.textContent?.trim() ?? '';
-      const rawDesc = item.querySelector('description')?.textContent?.trim() ?? '';
-      const desc = rawDesc
-        .replace(/<[^>]*>/g, '')
-        .replace(/The post .+ appeared first on .+\.$/, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 450);
-      return [title, desc].filter(Boolean).join('. ');
-    }).filter(s => s.length > 10);
-  } catch (e) {
-    console.warn('[EatText] RSS fetch failed:', e.message);
+  const cleanTC = raw => raw
+    .replace(/<[^>]*>/g, '')
+    .replace(/The post .+ appeared first on .+\.$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 450);
+
+  const results = await Promise.allSettled([
+    fetchFeed('https://techcrunch.com/feed/', cleanTC),
+    fetchFeed('https://news.ycombinator.com/rss', null), // HN desc is just "Comments"
+  ]);
+
+  const [tc, hn] = results.map(r => r.status === 'fulfilled' ? r.value : []);
+  if (!tc.length && !hn.length) {
+    console.warn('[EatText] All feeds failed');
     return null;
   }
+
+  // Interleave: TC, HN, TC, HN, … so each source alternates
+  const merged = [];
+  const len = Math.max(tc.length, hn.length);
+  for (let i = 0; i < len; i++) {
+    if (i < tc.length) merged.push(tc[i]);
+    if (i < hn.length) merged.push(hn[i]);
+  }
+  return merged;
 }
 
 function loadCurrentArticle() {
@@ -1307,7 +1326,7 @@ async function init() {
   // Show canvas immediately so the user isn't staring at a black screen
   showScreen('prompter');
   resizeCanvas();
-  drawLoadingFrame('Buscando TechCrunch...');
+  drawLoadingFrame('Buscando TechCrunch + HN...');
 
   const articles = await fetchRSSArticles();
   state.articles = articles?.length ? articles : [DEMO_SCRIPT];
