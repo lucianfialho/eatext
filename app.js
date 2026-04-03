@@ -411,13 +411,14 @@ function drawChomp(cx, cy, r, mouthOpen, bob) {
   ctx.restore();
 }
 
-// Shared geometry for Pac-Man — snake layout: Pac-Man moves along the line.
+// Shared geometry — horizontal mode: Pac-Man fixed on left, text scrolls into it.
 function chompGeometry() {
   const w  = window.innerWidth;
   const h  = window.innerHeight;
   const lh = getLineHeight();
   const r  = Math.round(Math.min(lh * 0.82, 56));
-  return { w, h, lh, r, padding: Math.round(w * 0.06), activeY: Math.round(h * 0.22) };
+  const padding = Math.round(w * 0.06);
+  return { w, h, lh, r, padding, activeY: Math.round(h * 0.5), mouthX: padding + r * 2 };
 }
 
 // Spawn crunch debris particles (line-end, big burst).
@@ -462,17 +463,14 @@ function spawnBiteCrunch(x, y, spread) {
 
 function renderFrame() {
   const g = chompGeometry();
-  const { w, h, lh, r: chompR, padding, activeY } = g;
+  const { w, h, lh, r: chompR, padding, activeY, mouthX } = g;
 
   // ── Char phase & "nhac nhac" jaw animation ────────────────────
-  // Bite fires in first 55% of the char cycle, then jaw rests CLOSED.
   const charPhase = state.charProgress % 1;
-  const bitePhase = Math.min(1, charPhase / 0.55); // 0→1 during the bite window
-  // Sharp snap: mouth whips open and shut, no gradual sinewave — squared gives sharper peak
+  const bitePhase = Math.min(1, charPhase / 0.55);
   const mouthOpen = state.running
     ? Math.pow(Math.sin(bitePhase * Math.PI), 1.6)
     : 0.45;
-  // Head nods DOWN on each bite (like a monster chomping)
   const bob = (state.running && !renderCache.reducedMotion)
     ? Math.sin(bitePhase * Math.PI) * chompR * 0.11
     : 0;
@@ -491,43 +489,29 @@ function renderFrame() {
   const activeLine = state.lines[state.lineIndex] ?? { text: '' };
   const eatenCount = Math.floor(state.charProgress);
 
-  // ── Measure how far Pac-Man's mouth is along the active line ──
-  // eatenText = all chars consumed; currentChar = the one being bitten right now
   const eatenText    = activeLine.text.substring(0, eatenCount);
   const eatenWidth   = ctx.measureText(eatenText).width;
   const currentChar  = activeLine.text[eatenCount] ?? '';
   const currentCharW = currentChar ? ctx.measureText(currentChar).width : 0;
 
-  // Mouth X: advances smoothly as the bite progresses through the current char
-  const mouthX   = padding + eatenWidth + bitePhase * currentCharW;
-  const pacmanCX = mouthX - chompR; // Pac-Man center (mouth = right edge)
+  // ── Pac-Man FIXED on left — text scrolls right→left into mouth ──
+  // Text origin shifts left as chars are eaten, keeping the mouth at fixedMouthX
+  const pacCX       = padding + chompR;                               // fixed
+  const textOriginX = mouthX - eatenWidth - bitePhase * currentCharW; // scrolls left
 
-  // ── Active line: draw only the uneaten portion, right of mouthX ──
+  // Show only uneaten portion (right of mouth)
   ctx.save();
   ctx.beginPath();
   ctx.rect(mouthX, 0, w - mouthX, h);
   ctx.clip();
   ctx.fillStyle = '#f0f0f0';
-  ctx.fillText(activeLine.text, padding, activeY + bob);
+  ctx.fillText(activeLine.text, textOriginX, activeY + bob);
   ctx.restore();
-
-  // ── Context lines (next 5 lines, fully visible below) ─────────
-  for (let i = 1; i <= 5; i++) {
-    const idx = state.lineIndex + i;
-    if (idx >= state.lines.length) break;
-    const lineY = activeY + i * lh;
-    if (lineY > h + lh) break;
-    ctx.save();
-    ctx.globalAlpha = Math.max(0.12, 1 - (i - 1) * 0.2);
-    ctx.fillStyle   = '#f0f0f0';
-    ctx.fillText(state.lines[idx].text, padding, lineY);
-    ctx.restore();
-  }
 
   if (state.settings.mirror) ctx.restore();
 
-  // ── Pac-Man — moves horizontally along the line ───────────────
-  drawChomp(pacmanCX, activeY, chompR, mouthOpen, bob);
+  // ── Pac-Man — stationary, mouth facing right ─────────────────
+  drawChomp(pacCX, activeY, chompR, mouthOpen, bob);
 
   // ── Crunch particles ─────────────────────────────────────────
   const now = performance.now();
@@ -571,25 +555,21 @@ function scrollLoop() {
   state.charProgress += charsPerFrame;
   const newFloor  = Math.floor(state.charProgress);
 
-  // Crunch at each word/punct boundary
+  // Crunch at each word/punct boundary — always at fixed mouth position
   if (newFloor > prevFloor) {
-    ctx.font = getFont();
     const g = chompGeometry();
     for (let ci = prevFloor; ci < newFloor && ci < activeLine.text.length; ci++) {
       const ch = activeLine.text[ci];
       if (ch === ' ' || ch === '.' || ch === ',' || ch === '!' || ch === '?') {
-        const x = g.padding + ctx.measureText(activeLine.text.substring(0, ci)).width;
-        spawnBiteCrunch(x, g.activeY, g.lh);
+        spawnBiteCrunch(g.mouthX, g.activeY, g.lh);
       }
     }
   }
 
   // Line fully eaten — advance to next
   if (state.charProgress >= activeLine.text.length) {
-    ctx.font = getFont();
     const g = chompGeometry();
-    const finalX = g.padding + ctx.measureText(activeLine.text).width;
-    spawnCrunch(finalX, g.activeY, g.lh * 0.7);
+    spawnCrunch(g.mouthX, g.activeY, g.lh * 0.7);
     state.lineIndex++;
     state.charProgress = 0;
   }
