@@ -56,7 +56,6 @@ const ui = {
   btnClear:        $('btn-clear'),
   btnSettings:     $('btn-settings'),
   btnSettingsClose:$('btn-settings-close'),
-  btnExit:         $('btn-exit'),
   canvas:          $('prompter-canvas'),
   progressBar:     $('progress-bar'),
   sliderSpeed:     $('slider-speed'),
@@ -248,7 +247,6 @@ function bindInputEvents() {
   ui.btnSettingsClose.addEventListener('click', () => showScreen('input'));
 
   ui.btnStart.addEventListener('click', startPrompter);
-  ui.btnExit.addEventListener('click', exitPrompter);
 }
 
 // ============================================================
