@@ -135,15 +135,22 @@ async function fetchRaw(url) {
 async function fetchFeed(url, source, descClean) {
   const xml = await fetchRaw(url);
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  const items = [...doc.querySelectorAll('item')].slice(0, 30);
+  // Support both RSS 2.0 (<item>) and Atom (<entry>)
+  const items = [...doc.querySelectorAll('item, entry')].slice(0, 30);
   if (!items.length) throw new Error('No items in ' + url);
   return items.map(item => {
     const title = item.querySelector('title')?.textContent?.trim() ?? '';
-    const rawDesc = item.querySelector('description')?.textContent?.trim() ?? '';
+    const rawDesc = (
+      item.querySelector('description')?.textContent ??
+      item.querySelector('summary')?.textContent ??
+      item.querySelector('content')?.textContent ?? ''
+    ).trim();
     const desc = descClean ? descClean(rawDesc) : '';
     const text = [title, desc].filter(Boolean).join('. ');
-    const url  = item.querySelector('link')?.textContent?.trim() ?? '';
-    return { text, source, url };
+    // RSS 2.0: <link> text node. Atom: <link href="..."> attribute
+    const linkEl = item.querySelector('link');
+    const articleUrl = linkEl?.getAttribute('href') || linkEl?.textContent?.trim() || '';
+    return { text, source, url: articleUrl };
   }).filter(a => a.text.length > 5);
 }
 
