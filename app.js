@@ -29,10 +29,10 @@ const state = {
   script: '',
   // Prompter runtime state
   running: false,
-  scrollY: 0,
-  totalHeight: 0,
+  scrollX: 0,
+  totalWidth: 0,
   animFrameId: null,
-  lines: [],
+  words: [],
   // Camera
   cameraStream: null,
   cameraActive: false,
@@ -281,11 +281,13 @@ function bindKeyboardEvents() {
         e.preventDefault();
         togglePause();
         break;
+      case 'ArrowRight':
       case 'ArrowUp':
         e.preventDefault();
         state.settings.speed = Math.min(10, state.settings.speed + 1);
         saveSettings();
         break;
+      case 'ArrowLeft':
       case 'ArrowDown':
         e.preventDefault();
         state.settings.speed = Math.max(1, state.settings.speed - 1);
@@ -326,52 +328,38 @@ function resizeCanvas() {
   ctx.scale(dpr, dpr);
 }
 
-// Word-wrap text into lines that fit maxWidth using canvas measureText.
-// Handles explicit newlines in the source text.
-function buildLines(text, font, maxWidth) {
-  ctx.font = font;
-  const result = [];
+// Build flat word list with x positions for horizontal scroll.
+// Words from different paragraphs get a larger gap between them.
+function buildWords(text) {
+  ctx.font = getFont();
+  const fs      = state.settings.fontSize;
+  const wordGap = Math.round(fs * 0.55);  // space between words
+  const paraGap = Math.round(fs * 2.2);   // extra gap at paragraph break
+  let x = 0;
+  state.words = [];
   for (const para of text.split('\n')) {
-    if (!para.trim()) { result.push(''); continue; }
-    const words = para.split(/\s+/).filter(Boolean);
-    let current = '';
-    for (const word of words) {
-      const candidate = current ? current + ' ' + word : word;
-      if (current && ctx.measureText(candidate).width > maxWidth) {
-        result.push(current);
-        current = word;
-      } else {
-        current = candidate;
-      }
+    const raw = para.trim().split(/\s+/).filter(Boolean);
+    if (!raw.length) { x += paraGap; continue; }
+    for (const word of raw) {
+      const w = ctx.measureText(word).width;
+      state.words.push({ text: word, x, width: w });
+      x += w + wordGap;
     }
-    if (current) result.push(current);
+    x += paraGap - wordGap; // extra gap at end of paragraph
   }
-  return result;
+  state.totalWidth = x;
 }
 
 function prepareCanvas() {
   if (!state.script.trim()) return;
-  const font    = getFont();
-  const lh      = getLineHeight();
-  const padding = Math.round(window.innerWidth * 0.08);
-  const maxWidth = window.innerWidth - padding * 2;
-
-  state.lines = buildLines(state.script, font, maxWidth);
-  state.totalHeight = state.lines.length * lh;
+  buildWords(state.script);
 }
 
 // Draw Chomp facing RIGHT — mouth opens toward the text.
-// cx/cy = center, r = radius, mouthOpen = 0..1
-function drawChomp(cx, cy, r, mouthOpen) {
+// cx/cy = center, r = radius, mouthOpen = 0..1, bob = pre-computed vertical offset
+function drawChomp(cx, cy, r, mouthOpen, bob) {
   const t     = Date.now() / 1000;
-  const hz    = state.running ? 2 + state.settings.speed * 0.4 : 0;
   const angle = mouthOpen * 0.36 * Math.PI; // max ~65°
-
-  // ── Animations ───────────────────────────────────────────────
-  // Bob: vertical bounce in sync with jaw (same frequency, half-cycle offset)
-  const bob = (state.running && !renderCache.reducedMotion)
-    ? Math.sin(t * Math.PI * 2 * hz + Math.PI / 2) * r * 0.09
-    : 0;
 
   // Squish/stretch: body deforms on each chomp
   const sX = 1 - mouthOpen * 0.09;  // squeeze width when mouth open
@@ -430,19 +418,27 @@ function drawChomp(cx, cy, r, mouthOpen) {
 }
 
 function renderFrame() {
-  const w       = window.innerWidth;
-  const h       = window.innerHeight;
-  const lh      = getLineHeight();
-  const padding = Math.round(w * 0.05);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const lh = getLineHeight();
 
-  // Chomp geometry — large, top-left corner, mouth faces right
-  const chompR = Math.round(Math.min(w * 0.13, lh * 0.9, 72));
-  const chompX = chompR + 8;
-  const chompY = chompR + 8;
-  // Clip: text above chompY vanishes into the mouth
-  const clipY  = chompY;
-  // Text left edge: right of mouth for the eating line, normal padding for others
-  const mouthRight = chompX + chompR + 14;
+  // Pac-Man: fixed on left side, vertically centered
+  const chompR = Math.round(Math.min(w * 0.11, lh * 0.85, 64));
+  const chompX = chompR + Math.round(w * 0.04);
+  const chompY = Math.round(h * 0.45);
+
+  // Animation values
+  const hz = state.running ? 2 + state.settings.speed * 0.4 : 0;
+  const t  = Date.now() / 1000;
+  const mouthOpen = hz > 0
+    ? (Math.sin(t * Math.PI * 2 * hz) + 1) / 2
+    : 0.45;
+  const bob = (state.running && !renderCache.reducedMotion)
+    ? Math.sin(t * Math.PI * 2 * hz + Math.PI / 2) * chompR * 0.09
+    : 0;
+
+  // Clip: words vanish once they reach the mouth opening
+  const clipX = chompX + chompR;
 
   // ── Background ───────────────────────────────────────────────
   if (state.cameraActive && ui.cameraFeed.readyState >= 2) {
@@ -457,53 +453,44 @@ function renderFrame() {
     ctx.fillRect(0, 0, w, h);
   }
 
-  if (!state.lines.length) return;
+  if (!state.words.length) return;
 
-  // ── Text ─────────────────────────────────────────────────────
+  // ── Words ─────────────────────────────────────────────────────
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, clipY, w, h);
+  ctx.rect(clipX, 0, w - clipX, h); // only draw right of mouth
   ctx.clip();
 
   if (state.settings.mirror) { ctx.translate(w, 0); ctx.scale(-1, 1); }
 
+  ctx.font = getFont();
   ctx.textBaseline = 'middle';
 
-  state.lines.forEach((line, i) => {
-    const lineY = clipY + (i * lh) - state.scrollY;
-    if (lineY + lh < clipY || lineY - lh > h) return;
+  state.words.forEach((word) => {
+    // Words start off-screen right, scroll left
+    const sx = word.x - state.scrollX + w;
+    if (sx + word.width < clipX || sx > w + 200) return;
 
-    // Line at eating position starts right of mouth; lines below start from padding
-    const atMouth  = lineY <= clipY + lh * 0.5;
-    const lineX    = atMouth ? mouthRight : padding;
-
-    // Fade as line enters the mouth
-    const distToClip = lineY - clipY;
-    const opacity    = distToClip < lh * 0.8
-      ? Math.max(0, distToClip / (lh * 0.8))
-      : 1;
+    // Fade as word approaches the mouth
+    const dist    = sx - clipX;
+    const fadeZone = word.width * 2 + state.settings.fontSize;
+    const opacity  = dist < fadeZone ? Math.max(0, dist / fadeZone) : 1;
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.font        = getFont();
     ctx.fillStyle   = renderCache.canvasText;
-    ctx.fillText(line, lineX, lineY);
+    ctx.fillText(word.text, sx, chompY + bob);
     ctx.restore();
   });
 
   ctx.restore();
 
-  // ── Chomp ────────────────────────────────────────────────────
-  const hz = state.running ? 2 + state.settings.speed * 0.4 : 0;
-  const mouthOpen = hz > 0
-    ? (Math.sin(Date.now() / 1000 * Math.PI * 2 * hz) + 1) / 2
-    : 0.45;
-
-  drawChomp(chompX, chompY, chompR, mouthOpen);
+  // ── Pac-Man ──────────────────────────────────────────────────
+  drawChomp(chompX, chompY, chompR, mouthOpen, bob);
 
   // ── Progress bar ─────────────────────────────────────────────
-  if (state.settings.progress && state.totalHeight > 0) {
-    const pct = Math.min(1, state.scrollY / (state.totalHeight - h));
+  if (state.settings.progress && state.totalWidth > 0) {
+    const pct = Math.min(1, state.scrollX / state.totalWidth);
     ui.progressBar.style.width = (pct * 100).toFixed(1) + '%';
   }
 }
@@ -513,12 +500,12 @@ function scrollLoop() {
 
   // Speed: 1 = 0.5px/frame, 10 = 8px/frame (exponential feel)
   const px = 0.3 * Math.pow(state.settings.speed, 1.4);
-  const maxScroll = Math.max(0, state.totalHeight - window.innerHeight * 0.85);
+  const maxScroll = state.totalWidth + window.innerWidth * 0.15;
 
-  state.scrollY = Math.min(state.scrollY + px, maxScroll);
+  state.scrollX = Math.min(state.scrollX + px, maxScroll);
   renderFrame();
 
-  if (state.scrollY < maxScroll) {
+  if (state.scrollX < maxScroll) {
     state.animFrameId = requestAnimationFrame(scrollLoop);
   } else {
     state.running = false;
@@ -547,7 +534,7 @@ function schedulePrepareCanvas() {
 // 2-finger: pinch = font size
 // ============================================================
 
-let _touch1Y = null;
+let _touch1X = null;
 let _touch1Speed = null;
 let _pinchDist = null;
 let _pinchFontSize = null;
@@ -562,9 +549,9 @@ ui.canvas.addEventListener('touchstart', (e) => {
   if (e.touches.length === 2) {
     _pinchDist     = getTouchDist(e.touches);
     _pinchFontSize = state.settings.fontSize;
-    _touch1Y = null; // cancel 1-finger tracking
+    _touch1X = null;
   } else {
-    _touch1Y     = e.touches[0].clientY;
+    _touch1X     = e.touches[0].clientX;
     _touch1Speed = state.settings.speed;
     _pinchDist   = null;
   }
@@ -576,10 +563,10 @@ ui.canvas.addEventListener('touchend', (e) => {
     return;
   }
   // tap = moved less than 10px
-  if (_touch1Y !== null && Math.abs(e.changedTouches[0].clientY - _touch1Y) < 10) {
+  if (_touch1X !== null && Math.abs(e.changedTouches[0].clientX - _touch1X) < 10) {
     togglePause();
   }
-  _touch1Y = null;
+  _touch1X = null;
 }, { passive: true });
 
 ui.canvas.addEventListener('touchmove', (e) => {
@@ -597,10 +584,10 @@ ui.canvas.addEventListener('touchmove', (e) => {
     }
     return;
   }
-  // 1-finger swipe → speed
-  if (_touch1Y === null) return;
-  const dy    = _touch1Y - e.touches[0].clientY;
-  const delta = Math.round(dy / 30);
+  // 1-finger swipe left/right → speed (swipe left = faster, follows scroll direction)
+  if (_touch1X === null) return;
+  const dx    = _touch1X - e.touches[0].clientX;
+  const delta = Math.round(dx / 30);
   const newSpeed = Math.max(1, Math.min(10, _touch1Speed + delta));
   if (newSpeed !== state.settings.speed) {
     state.settings.speed = newSpeed;
@@ -676,7 +663,7 @@ function startPrompter() {
   showScreen('prompter');
   resizeCanvas();
   prepareCanvas();
-  state.scrollY = 0;
+  state.scrollX = 0;
   state.running = true;
   scrollLoop();
 
