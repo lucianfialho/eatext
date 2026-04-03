@@ -163,7 +163,14 @@ async function fetchFeed(url, source, descClean) {
   }).filter(a => a.text.length > 5);
 }
 
-// Fetch The Verge + BBC Tech in parallel, interleave results.
+// Feeds com suporte nativo a imagem (media:thumbnail / media:content)
+const RSS_FEEDS = [
+  { url: 'https://feeds.bbci.co.uk/news/technology/rss.xml',   source: 'bbc.co.uk' },
+  { url: 'https://feeds.arstechnica.com/arstechnica/index',     source: 'arstechnica.com' },
+  { url: 'https://www.theguardian.com/technology/rss',          source: 'theguardian.com' },
+  { url: 'https://www.theverge.com/rss/index.xml',              source: 'theverge.com' },
+];
+
 async function fetchRSSArticles() {
   const cleanHTML = raw => raw
     .replace(/<[^>]*>/g, '')
@@ -171,25 +178,27 @@ async function fetchRSSArticles() {
     .trim()
     .slice(0, 450);
 
-  const results = await Promise.allSettled([
-    fetchFeed('https://www.theverge.com/rss/index.xml', 'theverge.com', cleanHTML),
-    fetchFeed('https://feeds.bbci.co.uk/news/technology/rss.xml', 'bbc.co.uk', cleanHTML),
-  ]);
+  const results = await Promise.allSettled(
+    RSS_FEEDS.map(f => fetchFeed(f.url, f.source, cleanHTML))
+  );
 
-  const [verge, bbc] = results.map(r => r.status === 'fulfilled' ? r.value : []);
-  if (!verge.length && !bbc.length) {
+  // Interleave all feeds round-robin, keep only articles with image
+  const feeds = results.map(r => r.status === 'fulfilled' ? r.value : []);
+  if (feeds.every(f => !f.length)) {
     console.warn('[EatText] All feeds failed');
     return null;
   }
 
-  // Interleave: Verge, BBC, Verge, BBC, …
   const merged = [];
-  const len = Math.max(verge.length, bbc.length);
+  const len = Math.max(...feeds.map(f => f.length));
   for (let i = 0; i < len; i++) {
-    if (i < verge.length) merged.push(verge[i]);
-    if (i < bbc.length)   merged.push(bbc[i]);
+    for (const feed of feeds) {
+      if (i < feed.length) merged.push(feed[i]);
+    }
   }
-  return merged;
+
+  // Only articles that have an image
+  return merged.filter(a => a.image);
 }
 
 function loadCurrentArticle() {
@@ -1203,6 +1212,19 @@ function showReadOver() {
   }));
 
   const isLast = state.articleIndex >= state.articles.length - 1;
+
+  // When at the last article, fetch fresh content in background and append new ones
+  if (isLast) {
+    fetchRSSArticles().then(fresh => {
+      if (!fresh?.length) return;
+      const seenUrls = new Set(state.articles.map(a => a.url).filter(Boolean));
+      const newOnes = fresh.filter(a => !seenUrls.has(a.url));
+      if (newOnes.length) {
+        state.articles.push(...newOnes);
+        console.log(`[EatText] +${newOnes.length} new articles appended`);
+      }
+    });
+  }
 
   // Yolo mode: auto-advance without showing overlay (unless it's the last article)
   if (state.settings.yolo && !isLast) {

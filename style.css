@@ -350,7 +350,8 @@ button {
 /* ── Article image card ──────────────────────────────────────── */
 .article-card {
   position: absolute;
-  top: 27%;
+  /* Midpoint between header bottom (~80px) and Pac-Man line (50vh) */
+  top: calc(40px + 25vh);
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
@@ -378,6 +379,7 @@ button {
   display: block;
   width: 80vw;
   height: calc(80vw * 9 / 16);
+  max-height: calc(50vh - 96px);
   object-fit: cover;
 }
 
