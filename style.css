@@ -530,116 +530,88 @@ button {
   outline-offset: 2px;
 }
 
-/* --- Prompter HUD (glassmorphism pill) — mobile-first ------- */
-.prompter-hud {
+/* ── Arcade HUD ─────────────────────────────────────────────── */
+.arcade-hud {
   position: absolute;
-  top: max(16px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 10px 20px;
-  background: rgba(8, 8, 8, 0.58);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 100px;
-  z-index: 10;
+  padding: 8px 20px;
+  background: #000;
+  border-top: 2px solid var(--arcade-yellow);
+  font-family: var(--arcade-font);
+  z-index: 15;
   pointer-events: none;
-  white-space: nowrap;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.hud-item {
+.ahud-wpm,
+.ahud-speed,
+.ahud-font {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
-.hud-item--font {
-  gap: 5px;
-}
-
-/* WPM — primary reading metric */
-.hud-wpm {
-  font-size: 18px;
-  font-weight: 600;
+.ahud-wpm-val {
+  font-size: 14px;
+  color: var(--arcade-cyan);
+  text-shadow: 0 0 10px var(--arcade-cyan);
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.88);
-  letter-spacing: -0.02em;
-  line-height: 1;
 }
 
-.hud-label {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.28);
-  align-self: flex-end;
-  padding-bottom: 1px;
+.ahud-font-val {
+  font-size: 9px;
+  color: var(--arcade-magenta);
+  text-shadow: 0 0 8px var(--arcade-magenta);
 }
 
-.hud-track {
-  width: 52px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-  align-self: center;
+.ahud-lbl {
+  font-size: 6px;
+  color: #444;
+  letter-spacing: 1px;
 }
 
-.hud-fill {
-  height: 100%;
-  background: #f5c518;
-  border-radius: 2px;
-  transition: width 200ms ease;
-  width: 33%;
-}
-
-.hud-val {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.hud-sep {
-  width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  flex-shrink: 0;
-}
-
-/* Icon hints */
-.hud-hints {
+/* Pips de velocidade */
+.ahud-pips {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  gap: 3px;
 }
 
-.hud-hint {
-  display: flex;
-  align-items: center;
-  color: rgba(255, 255, 255, 0.2);
+.ahud-pip {
+  width: 8px;
+  height: 8px;
+  border: 1px solid #333;
+  background: transparent;
+  transition: background 0.1s, box-shadow 0.1s;
 }
 
-.hud-icon {
-  width: 16px;
-  height: 16px;
-  display: block;
-  flex-shrink: 0;
+.ahud-pip.on.yellow {
+  background: var(--arcade-yellow);
+  border-color: var(--arcade-yellow);
+  box-shadow: 0 0 4px var(--arcade-yellow);
 }
 
-/* Scale down on larger screens */
-@media (min-width: 768px) {
-  .prompter-hud  { gap: 10px; padding: 7px 16px; }
-  .hud-wpm       { font-size: 15px; }
-  .hud-label     { font-size: 9px; }
-  .hud-track     { width: 44px; }
-  .hud-val       { font-size: 11px; }
-  .hud-sep       { height: 12px; }
-  .hud-icon      { width: 14px; height: 14px; }
+.ahud-pip.on.orange {
+  background: #ff8800;
+  border-color: #ff8800;
+  box-shadow: 0 0 4px #ff8800;
+}
+
+.ahud-pip.on.red {
+  background: #ff2200;
+  border-color: #ff2200;
+  box-shadow: 0 0 4px #ff2200;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .ahud-wpm-val { font-size: 11px; }
+  .ahud-pips { gap: 2px; }
+  .ahud-pip  { width: 6px; height: 6px; }
 }
 
 .progress-bar {
