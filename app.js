@@ -363,11 +363,28 @@ function prepareCanvas() {
 // Draw Chomp facing RIGHT — mouth opens toward the text.
 // cx/cy = center, r = radius, mouthOpen = 0..1
 function drawChomp(cx, cy, r, mouthOpen) {
+  const t     = Date.now() / 1000;
+  const hz    = state.running ? 2 + state.settings.speed * 0.4 : 0;
   const angle = mouthOpen * 0.36 * Math.PI; // max ~65°
 
+  // ── Animations ───────────────────────────────────────────────
+  // Bob: vertical bounce in sync with jaw (same frequency, half-cycle offset)
+  const bob = (state.running && !renderCache.reducedMotion)
+    ? Math.sin(t * Math.PI * 2 * hz + Math.PI / 2) * r * 0.09
+    : 0;
+
+  // Squish/stretch: body deforms on each chomp
+  const sX = 1 - mouthOpen * 0.09;  // squeeze width when mouth open
+  const sY = 1 + mouthOpen * 0.09;  // stretch height when mouth open
+
+  // Blink: eye closes briefly every ~3.5 s
+  const blinkCycle  = t % 3.5;
+  const blinkPhase  = blinkCycle > 3.35 ? (blinkCycle - 3.35) / 0.15 : 0; // 0..1
+  const blinkAmount = blinkPhase > 0 ? Math.sin(blinkPhase * Math.PI) : 0;  // 0..1
+
   ctx.save();
-  // Rotate so mouth faces right (Pac-Man style, 0° = right)
-  ctx.translate(cx, cy);
+  ctx.translate(cx, cy + bob);
+  ctx.scale(sX, sY);
 
   // Body — yellow circle with bite taken out
   ctx.fillStyle = '#f5c518';
@@ -383,43 +400,49 @@ function drawChomp(cx, cy, r, mouthOpen) {
     const tw = r * 0.18;
     const th = r * 0.2 * mouthOpen;
     const tx = r * 0.35;
-    // upper tooth
     const uy = -Math.sin(angle) * r * 0.82;
     ctx.fillRect(tx - tw / 2, uy - th, tw, th);
-    // lower tooth
     const ly = Math.sin(angle) * r * 0.82;
     ctx.fillRect(tx - tw / 2, ly, tw, th);
   }
 
-  // Eye (upper-right of body)
+  // Eye (with blink)
+  const eyeX = r * 0.1;
+  const eyeY = -r * 0.48;
+  const eyeR = r * 0.14;
+
+  ctx.save();
+  ctx.translate(eyeX, eyeY);
+  ctx.scale(1, Math.max(0.05, 1 - blinkAmount * 0.95)); // squish vertically on blink
   ctx.fillStyle = '#1a1a1a';
   ctx.beginPath();
-  ctx.arc(r * 0.1, -r * 0.48, r * 0.14, 0, Math.PI * 2);
+  ctx.arc(0, 0, eyeR, 0, Math.PI * 2);
   ctx.fill();
-
-  // Eye shine
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.beginPath();
-  ctx.arc(r * 0.15, -r * 0.54, r * 0.055, 0, Math.PI * 2);
-  ctx.fill();
+  if (blinkAmount < 0.4) {
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath();
+    ctx.arc(eyeR * 0.38, -eyeR * 0.42, eyeR * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 
   ctx.restore();
 }
 
 function renderFrame() {
-  const w   = window.innerWidth;
-  const h   = window.innerHeight;
-  const lh  = getLineHeight();
-  const padding = Math.round(w * 0.06);
+  const w       = window.innerWidth;
+  const h       = window.innerHeight;
+  const lh      = getLineHeight();
+  const padding = Math.round(w * 0.05);
 
-  // Chomp geometry — top-left, mouth facing right toward text
-  const chompR  = Math.max(20, Math.round(lh * 0.38));
-  const chompX  = chompR + 12;
-  const chompY  = chompR + Math.round(h * 0.04); // 4% from top
-  // Text starts to the right of the mouth
-  const textX   = chompX + chompR + 16;
-  // Clip line: text that rises above chompY disappears into the mouth
-  const clipY   = chompY;
+  // Chomp geometry — large, top-left corner, mouth faces right
+  const chompR = Math.round(Math.min(w * 0.13, lh * 0.9, 72));
+  const chompX = chompR + 8;
+  const chompY = chompR + 8;
+  // Clip: text above chompY vanishes into the mouth
+  const clipY  = chompY;
+  // Text left edge: right of mouth for the eating line, normal padding for others
+  const mouthRight = chompX + chompR + 14;
 
   // ── Background ───────────────────────────────────────────────
   if (state.cameraActive && ui.cameraFeed.readyState >= 2) {
@@ -436,50 +459,45 @@ function renderFrame() {
 
   if (!state.lines.length) return;
 
-  // ── Text (clipped above mouth) ───────────────────────────────
+  // ── Text ─────────────────────────────────────────────────────
   ctx.save();
-  // Clip region: only draw text BELOW the mouth's center line
   ctx.beginPath();
-  ctx.rect(0, clipY, w, h - clipY);
+  ctx.rect(0, clipY, w, h);
   ctx.clip();
 
-  if (state.settings.mirror) {
-    ctx.translate(w, 0);
-    ctx.scale(-1, 1);
-  }
+  if (state.settings.mirror) { ctx.translate(w, 0); ctx.scale(-1, 1); }
 
-  ctx.font = getFont();
   ctx.textBaseline = 'middle';
 
   state.lines.forEach((line, i) => {
-    // Lines scroll upward toward chompY
-    const lineY = chompY + lh * 0.5 + (i * lh) - state.scrollY;
+    const lineY = clipY + (i * lh) - state.scrollY;
+    if (lineY + lh < clipY || lineY - lh > h) return;
 
-    if (lineY + lh < clipY || lineY - lh > h) return; // cull
+    // Line at eating position starts right of mouth; lines below start from padding
+    const atMouth  = lineY <= clipY + lh * 0.5;
+    const lineX    = atMouth ? mouthRight : padding;
 
-    // Fade out lines that are close to being eaten
-    const distToMouth = lineY - clipY;
-    const opacity = distToMouth < lh
-      ? Math.max(0, distToMouth / lh)
+    // Fade as line enters the mouth
+    const distToClip = lineY - clipY;
+    const opacity    = distToClip < lh * 0.8
+      ? Math.max(0, distToClip / (lh * 0.8))
       : 1;
 
+    ctx.save();
     ctx.globalAlpha = opacity;
+    ctx.font        = getFont();
     ctx.fillStyle   = renderCache.canvasText;
-    ctx.fillText(line, textX, lineY);
+    ctx.fillText(line, lineX, lineY);
+    ctx.restore();
   });
 
   ctx.restore();
 
-  // ── Chomp character ──────────────────────────────────────────
-  let mouthOpen;
-  if (!state.running) {
-    mouthOpen = 0.45; // waiting, mouth slightly open
-  } else {
-    // Chomps faster at higher speed
-    const hz = 2 + state.settings.speed * 0.4;
-    const t  = Date.now() / 1000;
-    mouthOpen = (Math.sin(t * Math.PI * 2 * hz) + 1) / 2;
-  }
+  // ── Chomp ────────────────────────────────────────────────────
+  const hz = state.running ? 2 + state.settings.speed * 0.4 : 0;
+  const mouthOpen = hz > 0
+    ? (Math.sin(Date.now() / 1000 * Math.PI * 2 * hz) + 1) / 2
+    : 0.45;
 
   drawChomp(chompX, chompY, chompR, mouthOpen);
 
