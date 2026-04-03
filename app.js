@@ -1,4 +1,4 @@
-// EatText — Teleprompter PWA
+// EatText — RSS e-reader PWA
 // app.js — main entry point
 
 import { prepareWithSegments, layoutWithLines } from 'https://esm.sh/@chenglou/pretext';
@@ -7,9 +7,7 @@ import { prepareWithSegments, layoutWithLines } from 'https://esm.sh/@chenglou/p
 // Constants
 // ============================================================
 
-const STORAGE_KEY_SCRIPT   = 'eattext_script';
 const STORAGE_KEY_SETTINGS = 'eattext_settings';
-const DEBOUNCE_SAVE_MS     = 500;
 const BITE_DURATION_MS     = 280; // one open→close cycle, independent of reading speed
 
 function notifySpeedChange() {
@@ -59,18 +57,14 @@ const state = {
 const $ = (id) => document.getElementById(id);
 
 const screens = {
-  input:    $('screen-input'),
   settings: $('screen-settings'),
   prompter: $('screen-prompter'),
 };
 
 const ui = {
-  scriptInput:     $('script-input'),
   ahudWpm:         $('ahud-wpm-val'),
   ahudFontVal:     $('ahud-font-val'),
   ahudPips:        $('ahud-pips'),
-  btnStart:        $('btn-start'),
-  btnClear:        $('btn-clear'),
   btnSettings:     $('btn-settings'),
   btnSettingsClose:$('btn-settings-close'),
   canvas:          $('prompter-canvas'),
@@ -193,13 +187,6 @@ function loadCurrentArticle() {
   }
 }
 
-let _saveScriptTimer = null;
-function scheduleSaveScript() {
-  clearTimeout(_saveScriptTimer);
-  _saveScriptTimer = setTimeout(() => {
-    localStorage.setItem(STORAGE_KEY_SCRIPT, state.script);
-  }, DEBOUNCE_SAVE_MS);
-}
 
 // ============================================================
 // Theme + render cache
@@ -335,23 +322,8 @@ function bindSettingsEvents() {
 // ============================================================
 
 function bindInputEvents() {
-  ui.scriptInput.addEventListener('input', () => {
-    state.script = ui.scriptInput.value;
-    scheduleSaveScript();
-  });
-
-  ui.btnClear.addEventListener('click', () => {
-    if (!state.script) return;
-    if (!confirm('Apagar o roteiro? Esta ação não pode ser desfeita.')) return;
-    state.script = '';
-    ui.scriptInput.value = '';
-    localStorage.removeItem(STORAGE_KEY_SCRIPT);
-  });
-
   ui.btnSettings.addEventListener('click', () => showScreen('settings'));
-  ui.btnSettingsClose.addEventListener('click', () => showScreen('input'));
-
-  ui.btnStart.addEventListener('click', startPrompter);
+  ui.btnSettingsClose.addEventListener('click', () => showScreen('prompter'));
 }
 
 // ============================================================
@@ -1370,11 +1342,6 @@ function exitFullscreen() {
 // ============================================================
 
 function startPrompter() {
-  if (!state.script.trim()) {
-    ui.scriptInput.focus();
-    return;
-  }
-
   showScreen('prompter');
   hideReadOver();
   resizeCanvas();
@@ -1400,7 +1367,18 @@ function exitPrompter() {
   state.finale  = null;
   cancelAnimationFrame(state.animFrameId);
   hideReadOver();
-  showScreen('input');
+  startRSSReading();
+}
+
+async function startRSSReading() {
+  showScreen('prompter');
+  resizeCanvas();
+  drawLoadingFrame('Buscando The Verge + BBC Tech...');
+  const articles = await fetchRSSArticles();
+  state.articles = articles?.length ? articles : [DEMO_SCRIPT];
+  state.articleIndex = 0;
+  loadCurrentArticle();
+  startPrompter();
 }
 
 // Handle fullscreen exit via browser back button / swipe
@@ -1442,20 +1420,10 @@ async function init() {
   loadSettings();
   updateRenderCache();
   syncSettingsUI();
+  bindInputEvents();
   bindKeyboardEvents();
   bindReadOverEvents();
-
-  // Show canvas immediately so the user isn't staring at a black screen
-  showScreen('prompter');
-  resizeCanvas();
-  drawLoadingFrame('Buscando The Verge + BBC Tech...');
-
-  const articles = await fetchRSSArticles();
-  state.articles = articles?.length ? articles : [DEMO_SCRIPT];
-  state.articleIndex = 0;
-  loadCurrentArticle();
-
-  startPrompter();
+  startRSSReading();
 }
 
 init();

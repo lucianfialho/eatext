@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-  <meta name="description" content="EatText — teleprompter que come seu roteiro linha por linha.">
+  <meta name="description" content="EatText — e-reader arcade que come notícias linha por linha.">
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
@@ -21,48 +21,6 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-
-  <!-- Screen: Input -->
-  <div id="screen-input" class="screen active">
-    <header class="input-header">
-      <h1 class="app-title">EatText</h1>
-      <div class="header-actions">
-        <button id="btn-settings" class="icon-btn" aria-label="Configurações">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </button>
-        <button id="btn-clear" class="icon-btn" aria-label="Limpar roteiro">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <div class="textarea-wrap">
-      <textarea
-        id="script-input"
-        class="script-textarea"
-        placeholder="Cole ou digite seu roteiro aqui..."
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-        aria-label="Roteiro"
-      ></textarea>
-    </div>
-
-    <footer class="input-footer">
-      <button id="btn-start" class="btn-primary" aria-label="Iniciar teleprompter">
-        Iniciar
-      </button>
-    </footer>
-  </div>
 
   <!-- Screen: Settings -->
   <div id="screen-settings" class="screen" aria-modal="true" role="dialog" aria-labelledby="settings-title">
@@ -128,10 +86,16 @@
     </div>
   </div>
 
-  <!-- Screen: Teleprompter -->
+  <!-- Screen: Reader -->
   <div id="screen-prompter" class="screen">
     <!-- Arcade marquee -->
-    <div class="arcade-marquee" aria-hidden="true">
+    <div class="arcade-marquee">
+      <button id="btn-settings" class="icon-btn arcade-settings-btn" aria-label="Configurações">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
       <span class="arcade-marquee-title">◄ EAT TEXT ►</span>
       <img id="arcade-source-icon" class="arcade-source-icon" src="" alt="" hidden>
       <div class="arcade-lives" id="arcade-lives">
@@ -157,7 +121,7 @@
       </div>
     </div>
 
-    <canvas id="prompter-canvas" aria-label="Teleprompter" role="img"></canvas>
+    <canvas id="prompter-canvas" aria-label="Leitor de artigos" role="img"></canvas>
     <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
 
     <!-- Read Over overlay -->

@@ -1,7 +1,7 @@
 {
   "name": "EatText",
   "short_name": "EatText",
-  "description": "EatText — teleprompter que come seu roteiro linha por linha.",
+  "description": "EatText — e-reader arcade que come notícias linha por linha.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
