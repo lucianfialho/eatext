@@ -418,6 +418,78 @@ button {
   z-index: 1;
 }
 
+/* ── Arcade Marquee ─────────────────────────────────────────── */
+.arcade-marquee {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #0d0618;
+  border-bottom: 2px solid var(--arcade-yellow);
+  font-family: var(--arcade-font);
+  position: relative;
+  z-index: 15;
+}
+
+.arcade-marquee-title {
+  font-size: 10px;
+  color: var(--arcade-yellow);
+  text-shadow: 0 0 8px var(--arcade-yellow), 0 0 20px var(--arcade-yellow);
+  letter-spacing: 2px;
+}
+
+.arcade-lives {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.arcade-life {
+  color: var(--arcade-yellow);
+  text-shadow: 0 0 6px var(--arcade-yellow);
+  font-size: 14px;
+  transition: opacity 0.3s;
+}
+
+.arcade-life.spent {
+  opacity: 0.2;
+}
+
+/* ── Arcade Scoreboard ──────────────────────────────────────── */
+.arcade-scoreboard {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: #000;
+  border-bottom: 1px solid #222;
+  font-family: var(--arcade-font);
+  position: relative;
+  z-index: 15;
+}
+
+.arcade-score-block {
+  text-align: center;
+}
+
+.arcade-score-label {
+  font-size: 7px;
+  color: var(--arcade-magenta);
+  text-shadow: 0 0 6px var(--arcade-magenta);
+  letter-spacing: 1px;
+}
+
+.arcade-score-val {
+  font-size: 9px;
+  color: #fff;
+  margin-top: 3px;
+  letter-spacing: 1px;
+}
+
+.arcade-hiscore {
+  color: var(--arcade-yellow);
+  text-shadow: 0 0 6px var(--arcade-yellow);
+}
+
 .prompter-controls {
   position: absolute;
   top: max(16px, env(safe-area-inset-top));
