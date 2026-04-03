@@ -359,10 +359,13 @@ button {
 }
 
 #camera-feed {
-  /* Never shown in DOM — frames are drawn onto canvas via ctx.drawImage */
-  display: none;
+  /* Off-screen but still decoded — ctx.drawImage needs active video frames */
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
   width: 1px;
   height: 1px;
+  pointer-events: none;
 }
 
 #prompter-canvas {

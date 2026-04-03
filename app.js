@@ -52,8 +52,6 @@ const screens = {
 
 const ui = {
   cameraFeed:      $('camera-feed'),
-  pipVideo:        $('pip-video'),
-  btnPip:          $('btn-pip'),
   btnCamera:       $('btn-camera'),
   scriptInput:     $('script-input'),
   btnStart:        $('btn-start'),
@@ -267,7 +265,6 @@ function bindInputEvents() {
   ui.btnStart.addEventListener('click', startPrompter);
   ui.btnExit.addEventListener('click', exitPrompter);
   ui.btnCamera.addEventListener('click', toggleCamera);
-  ui.btnPip.addEventListener('click', togglePiP);
 }
 
 // ============================================================
@@ -644,39 +641,6 @@ function toggleCamera() {
 }
 
 // ============================================================
-// Picture-in-Picture (canvas stream)
-// ============================================================
-
-async function enterPiP() {
-  if (!document.pictureInPictureEnabled) return;
-  try {
-    // Capture canvas at 30fps → pipe into hidden video → PiP
-    const stream = ui.canvas.captureStream(30);
-    ui.pipVideo.srcObject = stream;
-    await ui.pipVideo.play();
-    await ui.pipVideo.requestPictureInPicture();
-    ui.btnPip.setAttribute('aria-pressed', 'true');
-  } catch (_) {}
-}
-
-async function exitPiP() {
-  if (document.pictureInPictureElement) {
-    await document.exitPictureInPicture().catch(() => {});
-  }
-  ui.btnPip.setAttribute('aria-pressed', 'false');
-}
-
-async function togglePiP() {
-  if (document.pictureInPictureElement) exitPiP();
-  else enterPiP();
-}
-
-// Sync button state if user closes PiP via browser UI
-document.addEventListener('leavepictureinpicture', () => {
-  ui.btnPip.setAttribute('aria-pressed', 'false');
-});
-
-// ============================================================
 // Fullscreen helpers
 // ============================================================
 
@@ -765,10 +729,6 @@ function init() {
   bindInputEvents();
   bindSettingsEvents();
   bindKeyboardEvents();
-  // Hide PiP button on browsers that don't support it (e.g. iOS Safari, Firefox)
-  if (!document.pictureInPictureEnabled) {
-    ui.btnPip.style.display = 'none';
-  }
   showScreen('input');
 }
 
