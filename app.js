@@ -102,7 +102,7 @@ function saveSettings() {
   localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(state.settings));
 }
 
-const DEMO_SCRIPT = `TechCrunch feed unavailable. Pac-Man is hungry but offline. Check your connection and try again. Meanwhile, enjoy this placeholder text as Pac-Man eats every single character until help arrives. Waka waka waka.`;
+const DEMO_SCRIPT = `Feed unavailable. Pac-Man is hungry but offline. Check your connection and try again. Meanwhile, enjoy this placeholder text as Pac-Man eats every single character until help arrives. Waka waka waka.`;
 
 // Race all CORS proxies simultaneously — first valid XML response wins.
 // Individual timeout: 8s. If all fail, throws AggregateError.
@@ -147,32 +147,31 @@ async function fetchFeed(url, descClean) {
   }).filter(s => s.length > 5);
 }
 
-// Fetch TechCrunch + Hacker News in parallel, interleave results.
+// Fetch The Verge + BBC Tech in parallel, interleave results.
 async function fetchRSSArticles() {
-  const cleanTC = raw => raw
+  const cleanHTML = raw => raw
     .replace(/<[^>]*>/g, '')
-    .replace(/The post .+ appeared first on .+\.$/, '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 450);
 
   const results = await Promise.allSettled([
-    fetchFeed('https://techcrunch.com/feed/', cleanTC),
-    fetchFeed('https://news.ycombinator.com/rss', null), // HN desc is just "Comments"
+    fetchFeed('https://www.theverge.com/rss/index.xml', cleanHTML),
+    fetchFeed('https://feeds.bbci.co.uk/news/technology/rss.xml', cleanHTML),
   ]);
 
-  const [tc, hn] = results.map(r => r.status === 'fulfilled' ? r.value : []);
-  if (!tc.length && !hn.length) {
+  const [verge, bbc] = results.map(r => r.status === 'fulfilled' ? r.value : []);
+  if (!verge.length && !bbc.length) {
     console.warn('[EatText] All feeds failed');
     return null;
   }
 
-  // Interleave: TC, HN, TC, HN, … so each source alternates
+  // Interleave: Verge, BBC, Verge, BBC, …
   const merged = [];
-  const len = Math.max(tc.length, hn.length);
+  const len = Math.max(verge.length, bbc.length);
   for (let i = 0; i < len; i++) {
-    if (i < tc.length) merged.push(tc[i]);
-    if (i < hn.length) merged.push(hn[i]);
+    if (i < verge.length) merged.push(verge[i]);
+    if (i < bbc.length)   merged.push(bbc[i]);
   }
   return merged;
 }
@@ -1436,7 +1435,7 @@ async function init() {
   // Show canvas immediately so the user isn't staring at a black screen
   showScreen('prompter');
   resizeCanvas();
-  drawLoadingFrame('Buscando TechCrunch + HN...');
+  drawLoadingFrame('Buscando The Verge + BBC Tech...');
 
   const articles = await fetchRSSArticles();
   state.articles = articles?.length ? articles : [DEMO_SCRIPT];
