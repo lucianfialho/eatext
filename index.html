@@ -130,20 +130,50 @@
     <canvas id="prompter-canvas" aria-label="Teleprompter" role="img"></canvas>
     <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
     <div id="prompter-hud" class="prompter-hud" aria-hidden="true">
+
+      <!-- WPM + speed bar -->
       <div class="hud-item">
-        <span class="hud-label">vel</span>
-        <div class="hud-track">
-          <div id="hud-speed-fill" class="hud-fill"></div>
-        </div>
-        <span id="hud-speed-val" class="hud-val">4</span>
+        <span id="hud-wpm" class="hud-wpm">82</span>
+        <span class="hud-label">wpm</span>
       </div>
+      <div class="hud-track">
+        <div id="hud-speed-fill" class="hud-fill"></div>
+      </div>
+
       <div class="hud-sep"></div>
-      <span id="hud-font-val" class="hud-val">48px</span>
+
+      <!-- Font size -->
+      <div class="hud-item hud-item--font">
+        <!-- "Aa" text-size icon -->
+        <svg class="hud-icon" viewBox="0 0 20 16" fill="none" aria-hidden="true">
+          <text x="0" y="13" font-size="13" font-family="sans-serif" fill="currentColor" font-weight="600">A</text>
+          <text x="11" y="11" font-size="9"  font-family="sans-serif" fill="currentColor">a</text>
+        </svg>
+        <span id="hud-font-val" class="hud-val">48</span>
+      </div>
+
       <div class="hud-sep"></div>
+
+      <!-- Control hints — SVG icons only, no emoji -->
       <div class="hud-hints">
-        <span>↕ speed</span>
-        <span>🤏 font</span>
+        <!-- Swipe up/down = speed -->
+        <div class="hud-hint" title="swipe ↕ = speed">
+          <svg class="hud-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="4,7  9,3  14,7"/>
+            <polyline points="4,11 9,15 14,11"/>
+          </svg>
+        </div>
+        <!-- Pinch in/out = font -->
+        <div class="hud-hint" title="pinch = font size">
+          <svg class="hud-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="2"  y1="16" x2="7"  y2="11"/>
+            <line x1="16" y1="2"  x2="11" y2="7"/>
+            <polyline points="2,11 2,16 7,16"/>
+            <polyline points="11,2 16,2 16,7"/>
+          </svg>
+        </div>
       </div>
+
     </div>
   </div>
 

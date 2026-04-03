@@ -55,7 +55,7 @@ const screens = {
 const ui = {
   scriptInput:     $('script-input'),
   hudSpeedFill:    $('hud-speed-fill'),
-  hudSpeedVal:     $('hud-speed-val'),
+  hudWpm:          $('hud-wpm'),
   hudFontVal:      $('hud-font-val'),
   btnStart:        $('btn-start'),
   btnClear:        $('btn-clear'),
@@ -571,7 +571,12 @@ function drawWindLines(cx, cy, r, speed) {
   ctx.restore();
 }
 
-// Update the HTML HUD pill — only when values actually change (DOM writes are cheap but not free).
+// WPM = chars/sec ÷ avg chars per word (5) × 60
+function calcWPM(speed) {
+  return Math.round((1.8 + speed * 1.25) / 5 * 60);
+}
+
+// Update the HTML HUD pill — only when values actually change.
 const _hudCache = { speed: -1, fontSize: -1 };
 function updateHUD() {
   const { speed, fontSize } = state.settings;
@@ -579,8 +584,8 @@ function updateHUD() {
   _hudCache.speed    = speed;
   _hudCache.fontSize = fontSize;
   ui.hudSpeedFill.style.width = ((speed - 1) / 9 * 100).toFixed(1) + '%';
-  ui.hudSpeedVal.textContent  = speed;
-  ui.hudFontVal.textContent   = fontSize + 'px';
+  ui.hudWpm.textContent       = calcWPM(speed);
+  ui.hudFontVal.textContent   = fontSize;
 }
 
 function renderFrame() {
