@@ -323,7 +323,7 @@ button {
   align-items: center;
   overflow: hidden;
   position: relative;
-  background: var(--arcade-bg);
+  background: var(--canvas-bg);
   padding-top: 12px;
 }
 
