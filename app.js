@@ -102,7 +102,7 @@ function saveSettings() {
 
 const DEMO_SCRIPT = `Feed unavailable. Pac-Man is hungry but offline. Check your connection and try again. Meanwhile, enjoy this placeholder text as Pac-Man eats every single character until help arrives. Waka waka waka.`;
 
-// Race all CORS proxies simultaneously — first valid XML response wins.
+// Fetch RSS via our own Vercel API proxy (primary) or CORS proxies (fallback).
 // Individual timeout: 8s. If all fail, throws AggregateError.
 async function fetchRaw(url) {
   const enc = encodeURIComponent(url);
@@ -115,18 +115,15 @@ async function fetchRaw(url) {
   };
 
   return Promise.any([
-    attempt(
-      'https://api.codetabs.com/v1/proxy?quest=' + enc,
-      r => r.text()
-    ),
+    // Own Vercel proxy — server-side, no CORS issues (works in production)
+    attempt('/api/rss?url=' + enc, r => r.text()),
+    // External fallbacks (for local dev or if api route fails)
+    attempt('https://api.codetabs.com/v1/proxy?quest=' + enc, r => r.text()),
     attempt(
       'https://api.allorigins.win/get?url=' + enc,
       async r => { const j = await r.json(); return j.contents; }
     ),
-    attempt(
-      'https://corsproxy.io/?' + enc,
-      r => r.text()
-    ),
+    attempt('https://corsproxy.io/?' + enc, r => r.text()),
   ]);
 }
 
