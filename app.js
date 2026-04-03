@@ -58,9 +58,9 @@ const screens = {
 
 const ui = {
   scriptInput:     $('script-input'),
-  hudSpeedFill:    $('hud-speed-fill'),
-  hudWpm:          $('hud-wpm'),
-  hudFontVal:      $('hud-font-val'),
+  ahudWpm:         $('ahud-wpm-val'),
+  ahudFontVal:     $('ahud-font-val'),
+  ahudPips:        $('ahud-pips'),
   btnStart:        $('btn-start'),
   btnClear:        $('btn-clear'),
   btnSettings:     $('btn-settings'),
@@ -73,8 +73,8 @@ const ui = {
   fontSizeValue:   $('font-size-value'),
   toggleMirror:    $('toggle-mirror'),
   toggleProgress:  $('toggle-progress'),
-  readOver:        $('read-over'),
-  readOverCount:   $('read-over-count'),
+  arcadeGameover:  $('arcade-gameover'),
+  arcadeGameoverCount: $('arcade-gameover-count'),
   btnNextArticle:  $('btn-next-article'),
   btnGameOver:     $('btn-game-over'),
 };
@@ -800,9 +800,23 @@ function updateHUD() {
   if (_hudCache.speed === speed && _hudCache.fontSize === fontSize) return;
   _hudCache.speed    = speed;
   _hudCache.fontSize = fontSize;
-  ui.hudSpeedFill.style.width = ((speed - 1) / 9 * 100).toFixed(1) + '%';
-  ui.hudWpm.textContent       = calcWPM(speed);
-  ui.hudFontVal.textContent   = fontSize;
+
+  // WPM
+  if (ui.ahudWpm) ui.ahudWpm.textContent = calcWPM(speed);
+
+  // Font val
+  if (ui.ahudFontVal) ui.ahudFontVal.textContent = `Aa ${fontSize}`;
+
+  // Pips — 10 pips, cores: amarelo (1-3), laranja (4-7), vermelho (8-10)
+  if (ui.ahudPips) {
+    ui.ahudPips.querySelectorAll('.ahud-pip').forEach(pip => {
+      const n = Number(pip.dataset.pip);
+      pip.classList.toggle('on', n <= speed);
+      pip.classList.toggle('yellow', n <= speed && n <= 3);
+      pip.classList.toggle('orange', n <= speed && n >= 4 && n <= 7);
+      pip.classList.toggle('red',    n <= speed && n >= 8);
+    });
+  }
 }
 
 function renderFrame() {
@@ -1108,13 +1122,18 @@ function finaleLoop() {
 // ── Read Over screen ──────────────────────────────────────────
 
 function showReadOver() {
-  ui.readOverCount.textContent =
-    `${state.articleIndex + 1} / ${state.articles.length}`;
-  ui.readOver.hidden = false;
+  if (ui.arcadeGameoverCount) {
+    ui.arcadeGameoverCount.textContent =
+      `${state.articleIndex + 1} / ${state.articles.length}`;
+  }
+  if (ui.arcadeGameover) ui.arcadeGameover.hidden = false;
+  dispatchEvent(new CustomEvent('eat:article-end', {
+    detail: { index: state.articleIndex, total: state.articles.length }
+  }));
 }
 
 function hideReadOver() {
-  ui.readOver.hidden = true;
+  if (ui.arcadeGameover) ui.arcadeGameover.hidden = true;
 }
 
 function bindReadOverEvents() {
