@@ -1,7 +1,7 @@
 // Cue — Teleprompter PWA
 // app.js — main entry point
 
-import { prepare, layout, walkLineRanges } from 'https://esm.sh/@chenglou/pretext@0.0.4';
+import { prepare, layoutWithLines } from 'https://esm.sh/@chenglou/pretext@0.0.4';
 
 // ============================================================
 // Constants
@@ -303,14 +303,9 @@ function prepareCanvas() {
   const maxWidth = window.innerWidth - padding * 2;
 
   state.prepared = prepare(state.script, font);
-  const result   = layout(state.prepared, maxWidth, lh);
+  const result = layoutWithLines(state.prepared, maxWidth, lh);
   state.totalHeight = result.height;
-
-  // Collect line positions
-  state.lines = [];
-  walkLineRanges(state.prepared, maxWidth, (line) => {
-    state.lines.push(line);
-  });
+  state.lines = result.lines; // each line has .text, .width, .start, .end
 }
 
 function renderFrame() {
