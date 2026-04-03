@@ -479,6 +479,65 @@ function spawnBiteCrunch(x, y, spread, ch) {
   }
 }
 
+// True for accented letters (ã, é, ç…) and high-impact symbols (!?@# etc.)
+function isSpecialChar(ch) {
+  if (!ch || ch === ' ') return false;
+  if (ch.normalize('NFD').length > ch.length) return true; // has diacritic
+  return /[!?@#$%^&*()\[\]{}<>\/\\|`~=+]/.test(ch);
+}
+
+// Explosion for special/accented chars: flash + 360° burst + rising smoke.
+function spawnExplosion(x, y, spread) {
+  if (renderCache.reducedMotion) return;
+  const now    = performance.now();
+  const colors = ['#ffffff', '#f5c518', '#ff6b00', '#ff2200', '#ffee00'];
+
+  // Quick white flash
+  state.particles.push({
+    x, y, vx: 0, vy: 0,
+    r: spread * 0.35,
+    type: 'flash', color: '#ffffff',
+    born: now, life: 130,
+  });
+
+  // 360° burst shards
+  for (let i = 0; i < 14; i++) {
+    const angle = (i / 14) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+    const speed = 140 + Math.random() * 280;
+    state.particles.push({
+      x: x + (Math.random() - 0.5) * 6,
+      y: y + (Math.random() - 0.5) * 6,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r:  Math.round(4 + Math.random() * 8),
+      rot: Math.random() * Math.PI,
+      rotSpeed: (Math.random() - 0.5) * 12,
+      type: 'shard',
+      color: colors[Math.floor(Math.random() * colors.length)],
+      born: now,
+      life: 350 + Math.random() * 200,
+    });
+  }
+
+  // Smoke puffs — rise upward, expand as they age
+  for (let i = 0; i < 5; i++) {
+    const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * Math.PI * 0.7;
+    const speed = 18 + Math.random() * 45;
+    const gray  = 140 + Math.floor(Math.random() * 80);
+    state.particles.push({
+      x: x + (Math.random() - 0.5) * spread * 0.5,
+      y: y + (Math.random() - 0.5) * spread * 0.3,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r:  Math.round(10 + Math.random() * 12),
+      type: 'smoke',
+      color: `rgb(${gray},${gray},${gray})`,
+      born: now,
+      life: 550 + Math.random() * 350,
+    });
+  }
+}
+
 // Speed-wind streaks trailing behind Pac-Man — intensity = speed setting.
 function drawWindLines(cx, cy, r, speed) {
   const intensity = Math.max(0, (speed - 1) / 9); // 0 at speed 1, 1 at speed 10
@@ -613,11 +672,30 @@ function renderFrame() {
     const py       = p.y + p.vy * sec + 0.5 * 320 * sec * sec;
 
     ctx.save();
-    ctx.globalAlpha = 1 - progress;
-    ctx.fillStyle   = p.color;
-    if (p.type === 'shard') {
-      // Thin spinning shard — tall narrow rectangle rotated
+    if (p.type === 'flash') {
+      // Expanding white circle that fades immediately
+      const flashR = p.r * (1 + progress * 2.5);
+      ctx.globalAlpha = (1 - progress) * 0.75;
+      ctx.fillStyle   = p.color;
+      ctx.beginPath();
+      ctx.arc(px, py, flashR, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (p.type === 'smoke') {
+      // Soft expanding circle — blurred via shadow
+      const smokeR = p.r * (1 + progress * 2.2);
+      ctx.globalAlpha  = (1 - progress) * 0.28;
+      ctx.shadowColor  = p.color;
+      ctx.shadowBlur   = smokeR * 1.4;
+      ctx.fillStyle    = p.color;
+      ctx.beginPath();
+      ctx.arc(px, py, smokeR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    } else if (p.type === 'shard') {
+      // Thin spinning shard
       const rot = p.rot + (age / 1000) * p.rotSpeed;
+      ctx.globalAlpha = 1 - progress;
+      ctx.fillStyle   = p.color;
       ctx.translate(px, py);
       ctx.rotate(rot);
       ctx.beginPath();
@@ -625,6 +703,8 @@ function renderFrame() {
       ctx.fill();
     } else {
       // Soft rounded crumb
+      ctx.globalAlpha = 1 - progress;
+      ctx.fillStyle   = p.color;
       ctx.beginPath();
       ctx.roundRect(px - p.r, py - p.r * 0.4, p.r * 2, p.r * 0.8, p.r * 0.4);
       ctx.fill();
@@ -663,7 +743,9 @@ function scrollLoop() {
     state.lastBiteTime = performance.now();
     const g = chompGeometry();
     for (let ci = prevFloor; ci < newFloor && ci < activeLine.text.length; ci++) {
-      spawnBiteCrunch(g.mouthX, g.activeY, g.lh, activeLine.text[ci]);
+      const ch = activeLine.text[ci];
+      if (isSpecialChar(ch)) spawnExplosion(g.mouthX, g.activeY, g.lh);
+      else spawnBiteCrunch(g.mouthX, g.activeY, g.lh, ch);
     }
   }
 
