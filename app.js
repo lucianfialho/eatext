@@ -33,6 +33,7 @@ const state = {
   totalWidth: 0,
   animFrameId: null,
   words: [],
+  particles: [],   // crunch debris
   // Camera
   cameraStream: null,
   cameraActive: false,
@@ -345,7 +346,7 @@ function buildWords(text) {
     for (const word of raw) {
       const tw    = ctx.measureText(word).width;
       const pillW = tw + padX * 2;
-      state.words.push({ text: word, x, width: tw, pillW, padX, padY });
+      state.words.push({ text: word, x, width: tw, pillW, padX, padY, eaten: false });
       x += pillW + wordGap;
     }
     x += paraGap - wordGap;
@@ -420,6 +421,28 @@ function drawChomp(cx, cy, r, mouthOpen, bob) {
   ctx.restore();
 }
 
+// Spawn crunch debris particles at the mouth when a pill gets eaten.
+function spawnCrunch(x, y, pillH) {
+  if (renderCache.reducedMotion) return;
+  const now = performance.now();
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    // Scatter mostly leftward (behind Pac-Man) with a spread
+    const angle = Math.PI + (Math.random() - 0.5) * Math.PI * 0.75;
+    const speed = 80 + Math.random() * 180;
+    state.particles.push({
+      x,
+      y: y + (Math.random() - 0.5) * pillH * 0.7,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r:  Math.round(3 + Math.random() * 7),
+      color: Math.random() > 0.45 ? '#ffffff' : '#f5c518',
+      born: now,
+      life: 280 + Math.random() * 180, // ms
+    });
+  }
+}
+
 function renderFrame() {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -481,6 +504,13 @@ function renderFrame() {
 
   state.words.forEach((word) => {
     const sx = word.x - state.scrollX + w;
+
+    // Crunch: fire once when pill's right edge crosses into the mouth
+    if (!word.eaten && sx + word.pillW < clipX + pillR * 0.5) {
+      word.eaten = true;
+      spawnCrunch(clipX, wordY, pillR * 2);
+    }
+
     if (sx + word.pillW < clipX || sx > w + 400) return;
 
     const dist     = sx - clipX;
@@ -508,6 +538,27 @@ function renderFrame() {
 
   // ── Pac-Man ──────────────────────────────────────────────────
   drawChomp(chompX, chompY, chompR, mouthOpen, bob);
+
+  // ── Crunch particles ─────────────────────────────────────────
+  const now = performance.now();
+  state.particles = state.particles.filter((p) => {
+    const age = now - p.born;       // ms
+    if (age > p.life) return false;
+    const progress = age / p.life;  // 0→1
+    const sec      = age / 1000;
+    const px       = p.x + p.vx * sec;
+    const py       = p.y + p.vy * sec + 0.5 * 320 * sec * sec; // gravity
+
+    ctx.save();
+    ctx.globalAlpha = 1 - progress;
+    ctx.fillStyle   = p.color;
+    ctx.beginPath();
+    // Small pill-shaped fragment
+    ctx.roundRect(px - p.r, py - p.r * 0.4, p.r * 2, p.r * 0.8, p.r * 0.4);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  });
 
   // ── Progress bar ─────────────────────────────────────────────
   if (state.settings.progress && state.totalWidth > 0) {
