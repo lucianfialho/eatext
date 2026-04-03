@@ -1,7 +1,7 @@
-// Cue — Service Worker
+// EatText — Service Worker
 // Cache-first strategy for static assets, no Workbox.
 
-const CACHE_NAME = 'cue-v1';
+const CACHE_NAME = 'eattext-v2';
 
 const PRECACHE_ASSETS = [
   '/',
