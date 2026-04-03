@@ -85,6 +85,7 @@ const ui = {
   arcadeGameoverCount: $('arcade-gameover-count'),
   btnNextArticle:  $('btn-next-article'),
   btnGameOver:     $('btn-game-over'),
+  sourceIcon:      $('arcade-source-icon'),
 };
 
 // ============================================================
@@ -134,7 +135,7 @@ async function fetchRaw(url) {
 
 // Generic RSS fetch with multi-proxy fallback.
 // `descClean`: optional fn(rawDesc) → clean string (pass null to skip description).
-async function fetchFeed(url, descClean) {
+async function fetchFeed(url, source, descClean) {
   const xml = await fetchRaw(url);
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
   const items = [...doc.querySelectorAll('item')].slice(0, 30);
@@ -143,8 +144,9 @@ async function fetchFeed(url, descClean) {
     const title = item.querySelector('title')?.textContent?.trim() ?? '';
     const rawDesc = item.querySelector('description')?.textContent?.trim() ?? '';
     const desc = descClean ? descClean(rawDesc) : '';
-    return [title, desc].filter(Boolean).join('. ');
-  }).filter(s => s.length > 5);
+    const text = [title, desc].filter(Boolean).join('. ');
+    return { text, source };
+  }).filter(a => a.text.length > 5);
 }
 
 // Fetch The Verge + BBC Tech in parallel, interleave results.
@@ -156,8 +158,8 @@ async function fetchRSSArticles() {
     .slice(0, 450);
 
   const results = await Promise.allSettled([
-    fetchFeed('https://www.theverge.com/rss/index.xml', cleanHTML),
-    fetchFeed('https://feeds.bbci.co.uk/news/technology/rss.xml', cleanHTML),
+    fetchFeed('https://www.theverge.com/rss/index.xml', 'theverge.com', cleanHTML),
+    fetchFeed('https://feeds.bbci.co.uk/news/technology/rss.xml', 'bbc.co.uk', cleanHTML),
   ]);
 
   const [verge, bbc] = results.map(r => r.status === 'fulfilled' ? r.value : []);
@@ -177,7 +179,18 @@ async function fetchRSSArticles() {
 }
 
 function loadCurrentArticle() {
-  state.script = state.articles[state.articleIndex] ?? DEMO_SCRIPT;
+  const article = state.articles[state.articleIndex];
+  if (article && typeof article === 'object') {
+    state.script = article.text;
+    if (ui.sourceIcon) {
+      ui.sourceIcon.src = `https://www.google.com/s2/favicons?domain=${article.source}&sz=32`;
+      ui.sourceIcon.alt = article.source;
+      ui.sourceIcon.hidden = false;
+    }
+  } else {
+    state.script = article ?? DEMO_SCRIPT;
+    if (ui.sourceIcon) ui.sourceIcon.hidden = true;
+  }
 }
 
 let _saveScriptTimer = null;

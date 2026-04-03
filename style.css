@@ -427,6 +427,7 @@ button {
   justify-content: space-between;
   align-items: center;
   padding: 8px 16px;
+  padding-top: max(8px, env(safe-area-inset-top));
   background: #0d0618;
   border-bottom: 2px solid var(--arcade-yellow);
   font-family: var(--arcade-font);
@@ -439,6 +440,15 @@ button {
   color: var(--arcade-yellow);
   text-shadow: 0 0 8px var(--arcade-yellow), 0 0 20px var(--arcade-yellow);
   letter-spacing: 2px;
+}
+
+.arcade-source-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 4px var(--arcade-cyan));
+  flex-shrink: 0;
 }
 
 .arcade-lives {
@@ -543,6 +553,7 @@ button {
   justify-content: space-between;
   align-items: center;
   padding: 8px 20px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
   background: #000;
   border-top: 2px solid var(--arcade-yellow);
   font-family: var(--arcade-font);
