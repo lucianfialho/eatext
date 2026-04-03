@@ -1,7 +1,7 @@
 // EatText — Teleprompter PWA
 // app.js — main entry point
 
-// No external dependencies — word-wrap is implemented inline below.
+import { prepareWithSegments, layoutWithLines } from 'https://esm.sh/@chenglou/pretext';
 
 // ============================================================
 // Constants
@@ -36,6 +36,8 @@ const state = {
   lines: [],           // [{text}]
   particles: [],       // crunch debris
   lastBiteTime: 0,     // performance.now() of last char-consume event
+  graphemes: [],       // [{char, width, index}] for active line — grapheme-aware
+  cumWidths: [0],      // [0, w0, w0+w1, ...] cumulative pixel widths, O(1) lookup
 };
 
 // ============================================================
@@ -311,33 +313,33 @@ function resizeCanvas() {
   ctx.scale(dpr, dpr);
 }
 
-// Word-wrap text into lines, handling explicit newlines as paragraph breaks.
-function buildLines(text, font, maxWidth) {
-  ctx.font = font;
-  const result = [];
-  for (const para of text.split('\n')) {
-    if (!para.trim()) { result.push({ text: '' }); continue; }
-    const words = para.split(/\s+/).filter(Boolean);
-    let current = '';
-    for (const word of words) {
-      const candidate = current ? current + ' ' + word : word;
-      if (current && ctx.measureText(candidate).width > maxWidth) {
-        result.push({ text: current });
-        current = word;
-      } else {
-        current = candidate;
-      }
-    }
-    if (current) result.push({ text: current });
-  }
-  return result;
-}
-
+// Build line layout via Pretext — accurate Unicode/bidi/grapheme-aware wrapping.
 function prepareCanvas() {
   if (!state.script.trim()) return;
   const padding  = Math.round(window.innerWidth * 0.06);
   const maxWidth = window.innerWidth - padding * 2;
-  state.lines = buildLines(state.script, getFont(), maxWidth);
+  const lh       = getLineHeight();
+  const prepared = prepareWithSegments(state.script, getFont(), { whiteSpace: 'pre-wrap' });
+  const { lines } = layoutWithLines(prepared, maxWidth, lh);
+  // Filter blank lines so Pac-Man never pauses on an empty gap
+  state.lines = lines.filter(l => l.text.trim().length > 0).map(l => ({ text: l.text }));
+  rebuildGraphemes();
+}
+
+// Precompute grapheme list + cumulative widths for the active line.
+// Replaces per-frame ctx.measureText(substring) with O(1) array lookup.
+function rebuildGraphemes() {
+  const line = state.lines[state.lineIndex];
+  if (!line) { state.graphemes = []; state.cumWidths = [0]; return; }
+  ctx.font = getFont();
+  const seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+  state.graphemes = [...seg.segment(line.text)].map(s => ({
+    char:  s.segment,
+    width: ctx.measureText(s.segment).width,
+    index: s.index,
+  }));
+  state.cumWidths = [0];
+  for (const g of state.graphemes) state.cumWidths.push(state.cumWidths.at(-1) + g.width);
 }
 
 // Draw Chomp facing RIGHT — mouth opens toward the text.
@@ -610,21 +612,22 @@ function renderFrame() {
 
   if (state.settings.mirror) { ctx.save(); ctx.translate(w, 0); ctx.scale(-1, 1); }
 
-  const activeLine = state.lines[state.lineIndex] ?? { text: '' };
-  const eatenCount = Math.floor(state.charProgress);
+  const activeLine   = state.lines[state.lineIndex] ?? { text: '' };
+  const eatenCount   = Math.floor(state.charProgress);
 
-  const eatenText    = activeLine.text.substring(0, eatenCount);
-  const eatenWidth   = ctx.measureText(eatenText).width;
-  const currentChar  = activeLine.text[eatenCount] ?? '';
-  const currentCharW = currentChar ? ctx.measureText(currentChar).width : 0;
+  // O(1) width lookup via precomputed cumWidths — no measureText per frame
+  const eatenWidth   = state.cumWidths[Math.min(eatenCount, state.cumWidths.length - 1)] ?? 0;
+  const currentG     = state.graphemes[eatenCount];
+  const currentChar  = currentG?.char ?? '';
+  const currentCharW = currentG?.width ?? 0;
 
   // ── Pac-Man FIXED on left — text scrolls right→left into mouth ──
-  // Text origin shifts left as chars are eaten, keeping the mouth at fixedMouthX
-  const pacCX       = padding + chompR;                                 // fixed
-  const textOriginX = mouthX - eatenWidth - charSubPhase * currentCharW; // scrolls left
+  const pacCX       = padding + chompR;
+  const textOriginX = mouthX - eatenWidth - charSubPhase * currentCharW;
 
-  // ── Upcoming text (chars after current) — hard clip at mouth ────
-  const upcomingText = activeLine.text.substring(eatenCount + 1);
+  // ── Upcoming text: grapheme-correct substring after current grapheme ──
+  const nextG        = state.graphemes[eatenCount + 1];
+  const upcomingText = nextG ? activeLine.text.substring(nextG.index) : '';
   const upcomingX    = mouthX + (1 - charSubPhase) * currentCharW;
   ctx.save();
   ctx.beginPath();
@@ -634,7 +637,7 @@ function renderFrame() {
   ctx.fillText(upcomingText, upcomingX, activeY + bob);
   ctx.restore();
 
-  // ── Current char: shrinks + fades + turns yellow as it's eaten ───
+  // ── Current grapheme: shrinks + fades + turns yellow as it's eaten ──
   if (currentChar) {
     const eatT  = charSubPhase;                          // 0=entering mouth, 1=swallowed
     const charLX = mouthX - eatT * currentCharW;         // left edge scrolls into mouth
@@ -738,23 +741,26 @@ function scrollLoop() {
   state.charProgress += charsPerFrame;
   const newFloor  = Math.floor(state.charProgress);
 
-  // Trigger jaw bite + crunch particles on every char consumed
+  const graphemeCount = state.graphemes.length;
+
+  // Trigger jaw bite + crunch particles on every grapheme consumed
   if (newFloor > prevFloor) {
     state.lastBiteTime = performance.now();
     const g = chompGeometry();
-    for (let ci = prevFloor; ci < newFloor && ci < activeLine.text.length; ci++) {
-      const ch = activeLine.text[ci];
+    for (let ci = prevFloor; ci < newFloor && ci < graphemeCount; ci++) {
+      const ch = state.graphemes[ci]?.char ?? '';
       if (isSpecialChar(ch)) spawnExplosion(g.mouthX, g.activeY, g.lh);
       else spawnBiteCrunch(g.mouthX, g.activeY, g.lh, ch);
     }
   }
 
-  // Line fully eaten — advance to next
-  if (state.charProgress >= activeLine.text.length) {
+  // Line fully eaten — advance to next and precompute graphemes
+  if (state.charProgress >= graphemeCount) {
     const g = chompGeometry();
     spawnCrunch(g.mouthX, g.activeY, g.lh * 0.7);
     state.lineIndex++;
     state.charProgress = 0;
+    rebuildGraphemes();
   }
 
   renderFrame();
@@ -884,6 +890,7 @@ function startPrompter() {
   state.charProgress = 0;
   state.particles    = [];
   state.lastBiteTime = 0;
+  rebuildGraphemes();
   state.running      = true;
   scrollLoop();
 
