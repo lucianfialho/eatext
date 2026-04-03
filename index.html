@@ -15,6 +15,9 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
   <title>EatText</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -127,6 +130,32 @@
 
   <!-- Screen: Teleprompter -->
   <div id="screen-prompter" class="screen">
+    <!-- Arcade marquee -->
+    <div class="arcade-marquee" aria-hidden="true">
+      <span class="arcade-marquee-title">◄ EAT TEXT ►</span>
+      <div class="arcade-lives" id="arcade-lives">
+        <span class="arcade-life" data-life="1">ᗤ</span>
+        <span class="arcade-life" data-life="2">ᗤ</span>
+        <span class="arcade-life" data-life="3">ᗤ</span>
+      </div>
+    </div>
+
+    <!-- Arcade scoreboard -->
+    <div class="arcade-scoreboard" aria-hidden="true">
+      <div class="arcade-score-block">
+        <div class="arcade-score-label">1UP</div>
+        <div class="arcade-score-val" id="arcade-score-1up">00000</div>
+      </div>
+      <div class="arcade-score-block">
+        <div class="arcade-score-label">HI-SCORE</div>
+        <div class="arcade-score-val arcade-hiscore" id="arcade-score-hi">00000</div>
+      </div>
+      <div class="arcade-score-block">
+        <div class="arcade-score-label">WORDS</div>
+        <div class="arcade-score-val" id="arcade-score-words">00000</div>
+      </div>
+    </div>
+
     <canvas id="prompter-canvas" aria-label="Teleprompter" role="img"></canvas>
     <div id="progress-bar" class="progress-bar" aria-hidden="true"></div>
 
@@ -174,5 +203,6 @@
   </div>
 
   <script type="module" src="/app.js"></script>
+  <script type="module" src="/arcade.js"></script>
 </body>
 </html>
