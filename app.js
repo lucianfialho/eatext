@@ -432,23 +432,49 @@ function spawnCrunch(x, y, spread) {
 }
 
 // Bite crunch — fires on every char consumed.
-function spawnBiteCrunch(x, y, spread) {
+// ch: the character eaten — uppercase → sharp shards, lowercase → soft crumbs.
+function spawnBiteCrunch(x, y, spread, ch) {
   if (renderCache.reducedMotion) return;
+  const isUpper = ch && ch === ch.toUpperCase() && ch !== ch.toLowerCase();
   const now = performance.now();
-  for (let i = 0; i < 6; i++) {
-    // Mostly upward/downward fan, slight leftward bias (going into the mouth)
-    const angle = Math.PI * 0.5 + (Math.random() - 0.5) * Math.PI * 1.1;
-    const speed = 60 + Math.random() * 140;
-    state.particles.push({
-      x: x + (Math.random() - 0.5) * spread * 0.2,
-      y: y + (Math.random() - 0.5) * spread * 0.6,
-      vx: Math.cos(angle) * speed - 20, // slight leftward drift
-      vy: Math.sin(angle) * speed,
-      r:  Math.round(2 + Math.random() * 4),
-      color: Math.random() > 0.4 ? '#ffffff' : '#f5c518',
-      born: now,
-      life: 180 + Math.random() * 120,
-    });
+
+  if (isUpper) {
+    // UPPERCASE — estilhaços: sharp spinning shards, explosive, hot colors
+    const colors = ['#ffffff', '#f5c518', '#ff8c00', '#ff4d00'];
+    for (let i = 0; i < 9; i++) {
+      const angle = Math.PI * 0.5 + (Math.random() - 0.5) * Math.PI * 1.5;
+      const speed = 110 + Math.random() * 230;
+      state.particles.push({
+        x: x + (Math.random() - 0.5) * spread * 0.3,
+        y: y + (Math.random() - 0.5) * spread * 0.5,
+        vx: Math.cos(angle) * speed - 35,
+        vy: Math.sin(angle) * speed,
+        r:  Math.round(4 + Math.random() * 7),
+        rot: Math.random() * Math.PI,
+        rotSpeed: (Math.random() - 0.5) * 8,
+        type: 'shard',
+        color: colors[Math.floor(Math.random() * colors.length)],
+        born: now,
+        life: 200 + Math.random() * 150,
+      });
+    }
+  } else {
+    // lowercase — destroços: soft rounded crumbs, white/yellow, calm
+    for (let i = 0; i < 4; i++) {
+      const angle = Math.PI * 0.5 + (Math.random() - 0.5) * Math.PI * 0.9;
+      const speed = 40 + Math.random() * 90;
+      state.particles.push({
+        x: x + (Math.random() - 0.5) * spread * 0.15,
+        y: y + (Math.random() - 0.5) * spread * 0.4,
+        vx: Math.cos(angle) * speed - 15,
+        vy: Math.sin(angle) * speed,
+        r:  Math.round(2 + Math.random() * 3),
+        type: 'crumb',
+        color: Math.random() > 0.45 ? '#ffffff' : '#f5c518',
+        born: now,
+        life: 200 + Math.random() * 130,
+      });
+    }
   }
 }
 
@@ -544,9 +570,20 @@ function renderFrame() {
     ctx.save();
     ctx.globalAlpha = 1 - progress;
     ctx.fillStyle   = p.color;
-    ctx.beginPath();
-    ctx.roundRect(px - p.r, py - p.r * 0.4, p.r * 2, p.r * 0.8, p.r * 0.4);
-    ctx.fill();
+    if (p.type === 'shard') {
+      // Thin spinning shard — tall narrow rectangle rotated
+      const rot = p.rot + (age / 1000) * p.rotSpeed;
+      ctx.translate(px, py);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      ctx.rect(-p.r * 0.25, -p.r, p.r * 0.5, p.r * 2);
+      ctx.fill();
+    } else {
+      // Soft rounded crumb
+      ctx.beginPath();
+      ctx.roundRect(px - p.r, py - p.r * 0.4, p.r * 2, p.r * 0.8, p.r * 0.4);
+      ctx.fill();
+    }
     ctx.restore();
     return true;
   });
@@ -578,7 +615,7 @@ function scrollLoop() {
     state.lastBiteTime = performance.now();
     const g = chompGeometry();
     for (let ci = prevFloor; ci < newFloor && ci < activeLine.text.length; ci++) {
-      spawnBiteCrunch(g.mouthX, g.activeY, g.lh);
+      spawnBiteCrunch(g.mouthX, g.activeY, g.lh, activeLine.text[ci]);
     }
   }
 
