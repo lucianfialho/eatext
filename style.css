@@ -378,9 +378,8 @@ button {
 .article-card-img {
   display: block;
   width: 80vw;
-  /* Height grows with image, but never past the Pac-Man line */
-  height: auto;
-  max-height: calc(50svh - 110px);
+  /* Fill exactly the space between scoreboard (~90px) and Pac-Man (50svh), 16px gap */
+  height: calc(50svh - 106px);
   object-fit: cover;
 }
 
