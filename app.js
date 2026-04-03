@@ -313,16 +313,18 @@ function resizeCanvas() {
   ctx.scale(dpr, dpr);
 }
 
-// Build line layout via Pretext — accurate Unicode/bidi/grapheme-aware wrapping.
+// Build a single continuous line — no word-wrap at screen edge.
+// Pretext segments + measures the full text; we join everything into one strip.
 function prepareCanvas() {
   if (!state.script.trim()) return;
-  const padding  = Math.round(window.innerWidth * 0.06);
-  const maxWidth = window.innerWidth - padding * 2;
   const lh       = getLineHeight();
+  // Use huge maxWidth so Pretext never wraps at screen edge.
+  // With pre-wrap, explicit \n still creates breaks; we collapse those below.
   const prepared = prepareWithSegments(state.script, getFont(), { whiteSpace: 'pre-wrap' });
-  const { lines } = layoutWithLines(prepared, maxWidth, lh);
-  // Filter blank lines so Pac-Man never pauses on an empty gap
-  state.lines = lines.filter(l => l.text.trim().length > 0).map(l => ({ text: l.text }));
+  const { lines } = layoutWithLines(prepared, Number.MAX_SAFE_INTEGER, lh);
+  // Join all non-empty fragments into one continuous text stream
+  const fullText = lines.map(l => l.text).filter(t => t.trim().length > 0).join(' ');
+  state.lines = [{ text: fullText }];
   rebuildGraphemes();
 }
 
